@@ -19,25 +19,22 @@
 using json = nlohmann::json;
 #include <fstream>
 
-
-
 constexpr uint16_t MAX_NAME_LENGTH  = 30;
 constexpr uint16_t MAX_TYPE_LENGTH  = 8;
 constexpr uint16_t MAX_SIZE_LENGTH  = 12;
-
-
 
 constexpr uint16_t GB_BORDER_RED_COLOR =  10;       // (default: 10) the border for when filesizes in GB start to be displayed in PCL::RED.
 constexpr uint16_t GB_BORDER_YELLOW_COLOR =  2;     // (default: 2) the border for when filesizes in GB start to be displayed in PCL::YELLOW.
 constexpr uint16_t TREE_DEFAULT_MAX_DEPTH =  12;    // (default: 12) default max depth of the tree-view.
 constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default depth to start printing tree-views. No, -1 is not an error. This still worked when this was a uint16_t btw
 
-//TODO Remove this and implement cdict into @var print_table_view
-typedef struct _Row {
-    std::string name;   //First column
-    std::string type;   //Second column
-    uintmax_t size;     //Third column
-} Row;
+//A fragment of when there was not dict for saving the Directory calculations,
+//and there was a Row obj. needed to print the table.
+// typedef struct _Row {
+//     std::string name;   //First column
+//     std::string type;   //Second column
+//     uintmax_t size;     //Third column
+// } Row;
 
 typedef struct _cdict {
     
@@ -288,30 +285,34 @@ void print_cdict_table(const Contentdict& cdict){
     }
 
     //the final table that is printed using setw()
-    std::vector<Row> table;
+    std::vector<Contentdict> table = cdict.subdir;
 
-    for(const auto& entry : cdict.subdir){
+    //stable sort by cdict.value
+    std::stable_sort(table.begin(), table.end(),[](const Contentdict& a, const Contentdict& b) {return a.value > b.value;});
 
-        table.push_back({entry.key, entry.type, entry.value});
-    }
-
-    std::stable_sort(table.begin(), table.end(),[](const Row& a, const Row& b) {return a.size > b.size;});
-
+    //Header
     std::cout << std::left
               << std::setw(MAX_NAME_LENGTH) << UI::FIRST_ROW_STR
               << std::setw(MAX_TYPE_LENGTH) << UI::SEC_ROW_STR
               << std::right << std::setw(MAX_SIZE_LENGTH) << UI::THIRD_ROW_STR << PCL::NOFLUSH;
     std::cout << std::string(MAX_NAME_LENGTH + MAX_TYPE_LENGTH + MAX_SIZE_LENGTH, '-') << PCL::NOFLUSH;
 
+    //Less memory usage :)
     std::string sizestr;
+    //Table content
     for (const auto& row : table) {
-        sizestr = size_ext(row.size);
 
+        sizestr = size_ext(row.value);
+
+        if(row.is_invisible) std::cout << PCL::GRAY;
+
+        //I hate setwhite
         std::cout << std::left
-                  << std::setw(MAX_NAME_LENGTH) << truncate(row.name, MAX_NAME_LENGTH)
+                  << std::setw(MAX_NAME_LENGTH) << truncate(row.key, MAX_NAME_LENGTH)
                   << std::setw(MAX_TYPE_LENGTH) << row.type
                   << std::right << std::setw(MAX_SIZE_LENGTH - ansii_code_length(sizestr)) << sizestr
-                  << PCL::NOFLUSH;
+                  << PCL::NOFLUSH << PCL::END;
+                  
     }
 
     std::cout << "\nSize of current directiory: " << size_ext(cdict.value) << std::endl;
