@@ -31,7 +31,13 @@
 namespace fs = std::filesystem;
 
 
+std::string get_cmd_prompt(Contentdict cdict){
+    
+    std::ostringstream oss;
+    oss << PCL::BLUE << "[" << PCL::CYAN << short_path(cdict) << PCL::BLUE << "]" << PCL::END << "$" << UI::COMMAND_LINE_LINE;
 
+    return oss.str();
+}
 
 //Command struct with .name and .args
 typedef struct _Command {
@@ -56,7 +62,9 @@ bool is_hidden(const std::filesystem::directory_entry& entry) {
 }
 
 
-Contentdict get_size(const fs::directory_entry& entry) {
+
+
+Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = nullptr) {
 
     Contentdict currentdict;
 
@@ -64,8 +72,6 @@ Contentdict get_size(const fs::directory_entry& entry) {
     if (fs::is_symlink(status)){
         return currentdict;
     }
-
-    
 
     if (fs::is_directory(status)){
 
@@ -77,17 +83,19 @@ Contentdict get_size(const fs::directory_entry& entry) {
             
             for (const auto& current_entry : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied)) {
 
-                Contentdict nextdict = get_size(current_entry);
+                Contentdict nextdict = get_size(current_entry, phomedir);
+
+                nextdict.home_dir = phomedir;
 
                 if(is_hidden(current_entry)) currentdict.is_invisible = true;
 
                 currentdict.value += nextdict.value;
 
-                currentdict.subdir.push_back(std::move(nextdict));    
+                currentdict.subdir.push_back(std::move(nextdict));
             }
 
         }
-        catch (const fs::filesystem_error& e) {
+        catch (const fs::filesystem_error& _) {
             
             currentdict.symlinks_skipped += 1;
         }
@@ -108,32 +116,21 @@ Contentdict get_size(const fs::directory_entry& entry) {
 Contentdict g_home_dir;
 
 int main(int argc, char const *argv[]){
-
-
-    
-
-
-
     /*
         Init the fs::directory_entry for get_size() and call.
         This is always done
     */
     fs::directory_entry cwd(fs::current_path());
     
-    Contentdict cwd_dict = get_size(cwd);
+    Contentdict cwd_dict;
     Contentdict* p_cwd_dict = &cwd_dict;
+
+    cwd_dict  = get_size(cwd, p_cwd_dict);
 
     g_home_dir = cwd_dict;
 
-
-
-
     //Print the final table
     print_cdict_table(cwd_dict);
-
-    
-    
-
 
     //json-object-a-like to store {command-name : command-func}
     std::unordered_map<std::string, std::function<void(const Command&, Contentdict*&)>> COMMANDS;
@@ -174,7 +171,6 @@ int main(int argc, char const *argv[]){
         //goes to the home directory, just like in Linux. Because pwd'ing on "cd" is stupid.
         if (cmd.args.empty()) {
             cdict = &g_home_dir; //cd logic
-            print_cdict_table(*cdict);
             return;
         }
 
@@ -193,7 +189,6 @@ int main(int argc, char const *argv[]){
 
             //cd logic
             cdict = cdict -> parent;
-            print_cdict_table(*cdict);
             return;
         }
 
@@ -204,7 +199,6 @@ int main(int argc, char const *argv[]){
                 //cd logic
                 entry.parent = cdict;
                 cdict = &entry;
-                print_cdict_table(*cdict);
                 return;
             }
         }
@@ -238,11 +232,21 @@ int main(int argc, char const *argv[]){
     //prints a tree view of the cdict. Try it.
     COMMANDS["tree"] = [](const Command& cmd, Contentdict*& cdict){
 
-        if(!(cmd.args.empty())){
-            std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
+        if((cmd.args.empty())){
+            print_cdict_tree(*cdict, TREE_DEFAULT_MAX_DEPTH, TREE_DEFAULT_DEPTH, true);
+            return;
+        }
+        else if(cmd.args.size() > 1){
+            std::cout << info_str("This command only takes 0 or 1 arg, the rest were ignored.") << std::endl;
         }
 
-        print_cdict_tree(*cdict, TREE_DEFAULT_MAX_DEPTH, TREE_DEFAULT_DEPTH, true);
+        try{
+            print_cdict_tree(*cdict, std::stoi(cmd.args[0]), TREE_DEFAULT_DEPTH, true);
+        }
+        catch(std::runtime_error){
+            std::cout << warning_str("tree: Runtime Error, misused arg\n");
+        }
+        
     };
 
     //prints a table view of the cdict. Try it. NOW!
@@ -276,10 +280,11 @@ int main(int argc, char const *argv[]){
     };
         
     std::string cmd_input; //cmd-line input
+
     //command line UI
     while (true){
 
-        std::cout << UI::COMMAND_LINE_LINE;
+        std::cout << get_cmd_prompt(*p_cwd_dict);
         if(!std::getline(std::cin, cmd_input)){
             throw std::invalid_argument("Input could not be gathered.");
         }

@@ -18,13 +18,15 @@ constexpr double_t GB  = (1024.0 * MB);
 namespace PCL
 {
     std::string RED                         = "\033[91m";
+    std::string BLUE                        = "\033[94m";
     std::string YELLOW                      = "\033[93m";
-    std::string GRAY                        = "\033[39m";
+    std::string CYAN                        = "\033[96m";
+    std::string GRAY                        = "\033[90m";
     std::string END                         = "\033[0m";
     std::string UNDERLINE                   = "\033[4m";
     std::string BOLD                        = "\033[1m";
     std::string ITALIC                      = "\033[3m";
-    std::string NOFLUSH                     = "\n";
+    std::string NOFLUSH                     = "\n"; //this is just "\n"
 }
 
 //UI namespace. Already contains default values.
@@ -50,4 +52,8 @@ namespace UI
     std::string FILLED_DEPTH_SEPSTR     = "──────";
     std::string DOTDOTDOT_STR           = " ...";
     std::string KEY_AND_VALUE_SEPSTR    = ": ";
+
+
+    
+
 }

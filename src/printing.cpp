@@ -32,7 +32,7 @@ constexpr uint16_t GB_BORDER_YELLOW_COLOR =  2;     // (default: 2) the border f
 constexpr uint16_t TREE_DEFAULT_MAX_DEPTH =  12;    // (default: 12) default max depth of the tree-view.
 constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default depth to start printing tree-views. No, -1 is not an error. This still worked when this was a uint16_t btw
 
-
+//TODO Remove this and implement cdict into @var print_table_view
 typedef struct _Row {
     std::string name;   //First column
     std::string type;   //Second column
@@ -40,16 +40,17 @@ typedef struct _Row {
 } Row;
 
 typedef struct _cdict {
-    std::string key = "";                   //Key / name of the file / directory.
+    
+    std::string key = "";                       //Key / name of the file / directory.
     std::string type = UI::DEFAULT_TYPE_NAME;   //This is for printing only and does not effect code-logic. "DIR", "FILE" or default: "N/A"
-    std::vector<struct _cdict> subdir;      //Content of the directory.
-    uintmax_t value = 0;                    //Size in Bits. Can be converted to more usefull size-units with size_ext(cdict.value) -> str.
+    uintmax_t value = 0;                        //Size in Bits. Can be converted to more usefull size-units with size_ext(cdict.value) -> str.
+    std::vector<struct _cdict> subdir;          //Content of the directory.
 
-    struct _cdict* parent = nullptr;        //Pointer to parent dir, default is nullptr.
-    bool is_invisible = false;              //Some directories are not visible under some selected OS options. On Linux these files start with "."
+    struct _cdict* parent = nullptr;            //Pointer to parent dir, default is nullptr.
+    bool is_invisible = false;                  //Some directories are not visible under some selected OS options. On Linux these files start with "."
     std::string path = UI::DEFAULT_TYPE_NAME;   //String of the Path; for printing only; does not effect code-logic. "N/A" is default.
-    uint16_t symlinks_skipped = 0;          //Counts how many Symlinks have been skipped / are contained because of redundance.
-    struct _cdict* home_dir = nullptr;      //the home directory / the dir the program starts in. Is passed onto every subdir.
+    uint16_t symlinks_skipped = 0;              //Counts how many Symlinks have been skipped / are contained because of redundance.
+    struct _cdict* home_dir = nullptr;          //the home directory / the dir the program starts in. Is passed onto every subdir.
 
 } Contentdict;
 
@@ -68,48 +69,61 @@ bool load_json(){
     if (json_data.contains("PCL")) {
         auto& pcl = json_data["PCL"];
 
-        if (pcl.contains("RED"))          PCL::RED = pcl["RED"];
-        if (pcl.contains("YELLOW"))       PCL::YELLOW = pcl["YELLOW"];
-        if (pcl.contains("GRAY"))         PCL::GRAY = pcl["GRAY"];
-        if (pcl.contains("END"))          PCL::END = pcl["END"];
-        if (pcl.contains("UNDERLINE"))    PCL::UNDERLINE = pcl["UNDERLINE"];
-        if (pcl.contains("BOLD"))         PCL::BOLD = pcl["BOLD"];
-        if (pcl.contains("ITALIC"))       PCL::ITALIC = pcl["ITALIC"];
-        if (pcl.contains("NOFLUSH"))      PCL::NOFLUSH = pcl["NOFLUSH"];
+        if (pcl.contains("RED"))                PCL::RED                     = pcl["RED"];
+        if (pcl.contains("YELLOW"))             PCL::YELLOW                  = pcl["YELLOW"];
+        if (pcl.contains("BLUE"))               PCL::BLUE                    = pcl["BLUE"];
+        if (pcl.contains("GRAY"))               PCL::GRAY                    = pcl["GRAY"];
+        if (pcl.contains("CYAN"))               PCL::CYAN                    = pcl["CYAN"];
+        if (pcl.contains("END"))                PCL::END                     = pcl["END"];
+        if (pcl.contains("UNDERLINE"))          PCL::UNDERLINE               = pcl["UNDERLINE"];
+        if (pcl.contains("BOLD"))               PCL::BOLD                    = pcl["BOLD"];
+        if (pcl.contains("ITALIC"))             PCL::ITALIC                  = pcl["ITALIC"];
+        if (pcl.contains("NOFLUSH"))            PCL::NOFLUSH                 = pcl["NOFLUSH"];
     }
 
     if (json_data.contains("UI")) {
         auto& ui = json_data["UI"];
 
-        if (ui.contains("DIR_TYPE_NAME"))        UI::DIR_TYPE_NAME = ui["DIR_TYPE_NAME"];
-        if (ui.contains("FILE_TYPE_NAME"))       UI::FILE_TYPE_NAME = ui["FILE_TYPE_NAME"];
-        if (ui.contains("DEFAULT_TYPE_NAME"))    UI::DEFAULT_TYPE_NAME = ui["DEFAULT_TYPE_NAME"];
-
-        if (ui.contains("GB_EXT"))               UI::GB_EXT = ui["GB_EXT"];
-        if (ui.contains("MB_EXT"))               UI::MB_EXT = ui["MB_EXT"];
-        if (ui.contains("KB_EXT"))               UI::KB_EXT = ui["KB_EXT"];
-        if (ui.contains("B_EXT"))                UI::B_EXT = ui["B_EXT"];
-
-        if (ui.contains("COMMAND_LINE_LINE"))    UI::COMMAND_LINE_LINE = ui["COMMAND_LINE_LINE"];
-        if (ui.contains("FIRST_ROW_STR"))        UI::FIRST_ROW_STR = ui["FIRST_ROW_STR"];
-        if (ui.contains("SEC_ROW_STR"))          UI::SEC_ROW_STR = ui["SEC_ROW_STR"];
-        if (ui.contains("THIRD_ROW_STR"))        UI::THIRD_ROW_STR = ui["THIRD_ROW_STR"];
-
-        if (ui.contains("PIPE_DOWN_STR"))        UI::PIPE_DOWN_STR = ui["PIPE_DOWN_STR"];
-        if (ui.contains("VERTICAL_PIPE_STR"))    UI::VERTICAL_PIPE_STR = ui["VERTICAL_PIPE_STR"];
-        if (ui.contains("DIR_ARROW_STR"))        UI::DIR_ARROW_STR = ui["DIR_ARROW_STR"];
-        if (ui.contains("CROSS_PIPE_STR"))       UI::CROSS_PIPE_STR = ui["CROSS_PIPE_STR"];
-        if (ui.contains("FILE_ARROW_STR"))       UI::FILE_ARROW_STR = ui["FILE_ARROW_STR"];
-
-        if (ui.contains("EMPTY_DEPTH_SEPSTR"))   UI::EMPTY_DEPTH_SEPSTR = ui["EMPTY_DEPTH_SEPSTR"];
-        if (ui.contains("FILLED_DEPTH_SEPSTR"))  UI::FILLED_DEPTH_SEPSTR = ui["FILLED_DEPTH_SEPSTR"];
-        if (ui.contains("DOTDOTDOT_STR"))        UI::DOTDOTDOT_STR = ui["DOTDOTDOT_STR"];
-        if (ui.contains("KEY_AND_VALUE_SEPSTR")) UI::KEY_AND_VALUE_SEPSTR = ui["KEY_AND_VALUE_SEPSTR"];
+        if (ui.contains("DIR_TYPE_NAME"))        UI::DIR_TYPE_NAME           = ui["DIR_TYPE_NAME"];
+        if (ui.contains("FILE_TYPE_NAME"))       UI::FILE_TYPE_NAME          = ui["FILE_TYPE_NAME"];
+        if (ui.contains("DEFAULT_TYPE_NAME"))    UI::DEFAULT_TYPE_NAME       = ui["DEFAULT_TYPE_NAME"];
+        if (ui.contains("GB_EXT"))               UI::GB_EXT                  = ui["GB_EXT"];
+        if (ui.contains("MB_EXT"))               UI::MB_EXT                  = ui["MB_EXT"];
+        if (ui.contains("KB_EXT"))               UI::KB_EXT                  = ui["KB_EXT"];
+        if (ui.contains("B_EXT"))                UI::B_EXT                   = ui["B_EXT"];
+        if (ui.contains("COMMAND_LINE_LINE"))    UI::COMMAND_LINE_LINE       = ui["COMMAND_LINE_LINE"];
+        if (ui.contains("FIRST_ROW_STR"))        UI::FIRST_ROW_STR           = ui["FIRST_ROW_STR"];
+        if (ui.contains("SEC_ROW_STR"))          UI::SEC_ROW_STR             = ui["SEC_ROW_STR"];
+        if (ui.contains("THIRD_ROW_STR"))        UI::THIRD_ROW_STR           = ui["THIRD_ROW_STR"];
+        if (ui.contains("PIPE_DOWN_STR"))        UI::PIPE_DOWN_STR           = ui["PIPE_DOWN_STR"];
+        if (ui.contains("VERTICAL_PIPE_STR"))    UI::VERTICAL_PIPE_STR       = ui["VERTICAL_PIPE_STR"];
+        if (ui.contains("DIR_ARROW_STR"))        UI::DIR_ARROW_STR           = ui["DIR_ARROW_STR"];
+        if (ui.contains("CROSS_PIPE_STR"))       UI::CROSS_PIPE_STR          = ui["CROSS_PIPE_STR"];
+        if (ui.contains("FILE_ARROW_STR"))       UI::FILE_ARROW_STR          = ui["FILE_ARROW_STR"];
+        if (ui.contains("EMPTY_DEPTH_SEPSTR"))   UI::EMPTY_DEPTH_SEPSTR      = ui["EMPTY_DEPTH_SEPSTR"];
+        if (ui.contains("FILLED_DEPTH_SEPSTR"))  UI::FILLED_DEPTH_SEPSTR     = ui["FILLED_DEPTH_SEPSTR"];
+        if (ui.contains("DOTDOTDOT_STR"))        UI::DOTDOTDOT_STR           = ui["DOTDOTDOT_STR"];
+        if (ui.contains("KEY_AND_VALUE_SEPSTR")) UI::KEY_AND_VALUE_SEPSTR    = ui["KEY_AND_VALUE_SEPSTR"];
     }
 
     return 0;
 }
 
+
+std::string short_path(const Contentdict& cdict) {
+    if (cdict.home_dir == nullptr) {
+        return cdict.key;
+    }
+
+    std::string spath = cdict.path;
+    size_t len = cdict.home_dir -> path.length();
+
+    if(len != std::string::npos){
+        spath.erase(0, len - 1);
+    }
+
+    return cdict.home_dir -> key + "\\" + spath;
+}
 
 //truncates the string to a max size of param:width, and adds a "..."
 std::string truncate(const std::string& s, std::size_t width) {
@@ -232,9 +246,20 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
                         << UI::PIPE_DOWN_STR + UI::FILLED_DEPTH_SEPSTR << UI::DIR_ARROW_STR
                         << cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::NOFLUSH;
         }
+
+        /*
+            checking that the max_depth is not surpassed.
+
+            yes, this leaves out recursions, but this doesnt mather, because
+            since Version 2.0 printing and the calc. of the cdict are seperate.
+        */
+        if(depth + 1 == max_depth){
+            std::cout << stringtimes(UI::VERTICAL_PIPE_STR + UI::EMPTY_DEPTH_SEPSTR, depth + 1) << UI::DOTDOTDOT_STR << PCL::NOFLUSH;
+            return;
+        }
         
         for(const auto& subdict : cdict.subdir){
-            print_cdict_tree(subdict, max_depth ,depth + 1);
+            print_cdict_tree(subdict, max_depth, depth + 1);
         }
     }
     //is a normal file
