@@ -255,7 +255,7 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
             since Version 2.0 printing and the calc. of the cdict are seperate.
         */
         if(depth + 1 == max_depth){
-            std::cout << stringtimes(UI::VERTICAL_PIPE_STR + UI::EMPTY_DEPTH_SEPSTR, depth + 1) << UI::DOTDOTDOT_STR << PCL::NOFLUSH;
+            std::cout << PCL::GRAY <<stringtimes(UI::VERTICAL_PIPE_STR + UI::EMPTY_DEPTH_SEPSTR, depth + 1) << UI::DOTDOTDOT_STR << PCL::END <<PCL::NOFLUSH;
             return;
         }
         
@@ -266,7 +266,7 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
     //is a normal file
     else{
         std::cout   << stringtimes(UI::VERTICAL_PIPE_STR + UI::EMPTY_DEPTH_SEPSTR, depth) << UI::PIPE_DOWN_STR << UI::FILE_ARROW_STR
-                    << PCL::GRAY <<  cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::END << PCL::NOFLUSH;
+                    <<  cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::END << PCL::NOFLUSH;
     }
 
     if(first) std::cout << "\nSize of current directiory: " << size_ext(cdict.value) << std::endl;
@@ -304,19 +304,16 @@ void print_cdict_table(const Contentdict& cdict){
     //Less memory usage :)
     std::string sizestr;
     //Table content
-    for (const auto& row : table) {
+    for (const auto& cdict_row : table) {
 
-        sizestr = size_ext(row.value);
-
-        if(row.is_invisible) std::cout << PCL::GRAY;
+        sizestr = size_ext(cdict_row.value);
 
         //I hate setwhite
-        std::cout << std::left
-                  << std::setw(MAX_NAME_LENGTH) << truncate(row.key, MAX_NAME_LENGTH)
-                  << std::setw(MAX_TYPE_LENGTH) << row.type
+        std::cout << (cdict_row.is_invisible ? PCL::GRAY : "") << std::left
+                  << std::setw(MAX_NAME_LENGTH) << truncate(cdict_row.key, MAX_NAME_LENGTH)
+                  << std::setw(MAX_TYPE_LENGTH) << cdict_row.type
                   << std::right << std::setw(MAX_SIZE_LENGTH - ansii_code_length(sizestr)) << sizestr
-                  << PCL::NOFLUSH << PCL::END;
-                  
+                  << PCL::NOFLUSH << PCL::END;             
     }
 
     std::cout << "\nSize of current directiory: " << size_ext(cdict.value) << std::endl;
