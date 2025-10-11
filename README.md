@@ -56,7 +56,7 @@ Size of current directiory: 4.82 MB
 ```
 Then, use the _help_ command to see which other commands this program has to offer!
 ```bash
-> help
+[sortetdir]$> help
 Commands:
 cd      -> Change Directory to arg1.
 help    -> prints this.
@@ -69,13 +69,10 @@ pwd     -> prints working directory
 >
 ``` 
 ```bash
-> cd include
-Name                          Type            Size
---------------------------------------------------
-nlohmann                      DIR        963.14 KB
+[sortetdir]$> cd include
 
 Size of current directiory: 963.14 KB
-> tree
+[sortetdir/include]$> tree
 include: 963.14 KB
 ├> nlohmann: 963.14 KB
 │      ├> adl_serializer.hpp: 2.28 KB
@@ -135,5 +132,5 @@ include: 963.14 KB
 │      │      │      ├> hedley_undef.hpp: 5.53 KB
 
 Size of current directiory: 963.14 KB
->
+[sortetdir/include]$>
 ```

@@ -34,7 +34,7 @@ namespace fs = std::filesystem;
 std::string get_cmd_prompt(Contentdict cdict){
     
     std::ostringstream oss;
-    oss << PCL::BLUE << "[" << PCL::CYAN << short_path(cdict) << PCL::BLUE << "]" << PCL::END << "$" << UI::COMMAND_LINE_LINE;
+    oss << PCL::BLUE << UI::PRE_PROMPT << PCL::CYAN << short_path(cdict) << PCL::BLUE << UI::POST_PROMPT << PCL::END << UI::COMMAND_LINE_LINE;
 
     return oss.str();
 }
@@ -116,6 +116,9 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
 Contentdict g_home_dir;
 
 int main(int argc, char const *argv[]){
+
+    load_json();
+
     /*
         Init the fs::directory_entry for get_size() and call.
         This is always done

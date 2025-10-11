@@ -39,7 +39,11 @@ namespace UI
     std::string MB_EXT                  = " MB";
     std::string KB_EXT                  = " KB";
     std::string B_EXT                   = " B";
-    std::string COMMAND_LINE_LINE       = "> ";
+
+    std::string COMMAND_LINE_LINE       = "$> ";
+    std::string PRE_PROMPT              = "[";
+    std::string POST_PROMPT             = "]";
+
     std::string FIRST_ROW_STR           = "Name";
     std::string SEC_ROW_STR             = "Type";
     std::string THIRD_ROW_STR           = "Size";
@@ -53,7 +57,6 @@ namespace UI
     std::string DOTDOTDOT_STR           = " ...";
     std::string KEY_AND_VALUE_SEPSTR    = ": ";
 
-
-    
+    std::string TABLE_LINE_CHAR          = "-";
 
 }

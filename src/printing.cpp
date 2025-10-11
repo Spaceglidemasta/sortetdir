@@ -89,6 +89,8 @@ bool load_json(){
         if (ui.contains("KB_EXT"))               UI::KB_EXT                  = ui["KB_EXT"];
         if (ui.contains("B_EXT"))                UI::B_EXT                   = ui["B_EXT"];
         if (ui.contains("COMMAND_LINE_LINE"))    UI::COMMAND_LINE_LINE       = ui["COMMAND_LINE_LINE"];
+        if (ui.contains("PRE_PROMPT"))           UI::PRE_PROMPT              = ui["PRE_PROMPT"];
+        if (ui.contains("POST_PROMPT"))          UI::POST_PROMPT             = ui["POST_PROMPT"];
         if (ui.contains("FIRST_ROW_STR"))        UI::FIRST_ROW_STR           = ui["FIRST_ROW_STR"];
         if (ui.contains("SEC_ROW_STR"))          UI::SEC_ROW_STR             = ui["SEC_ROW_STR"];
         if (ui.contains("THIRD_ROW_STR"))        UI::THIRD_ROW_STR           = ui["THIRD_ROW_STR"];
@@ -101,6 +103,8 @@ bool load_json(){
         if (ui.contains("FILLED_DEPTH_SEPSTR"))  UI::FILLED_DEPTH_SEPSTR     = ui["FILLED_DEPTH_SEPSTR"];
         if (ui.contains("DOTDOTDOT_STR"))        UI::DOTDOTDOT_STR           = ui["DOTDOTDOT_STR"];
         if (ui.contains("KEY_AND_VALUE_SEPSTR")) UI::KEY_AND_VALUE_SEPSTR    = ui["KEY_AND_VALUE_SEPSTR"];
+
+        if(ui.contains("TABLE_LINE_CHAR"))        UI::TABLE_LINE_CHAR          = ui["TABLE_LINE_CHAR"];
     }
 
     return 0;
@@ -116,7 +120,7 @@ std::string short_path(const Contentdict& cdict) {
     size_t len = cdict.home_dir -> path.length();
 
     if(len != std::string::npos){
-        spath.erase(0, len - 1);
+        spath.erase(0, len + 1);
     }
 
     return cdict.home_dir -> key + "\\" + spath;
@@ -295,7 +299,7 @@ void print_cdict_table(const Contentdict& cdict){
               << std::setw(MAX_NAME_LENGTH) << UI::FIRST_ROW_STR
               << std::setw(MAX_TYPE_LENGTH) << UI::SEC_ROW_STR
               << std::right << std::setw(MAX_SIZE_LENGTH) << UI::THIRD_ROW_STR << PCL::NOFLUSH;
-    std::cout << std::string(MAX_NAME_LENGTH + MAX_TYPE_LENGTH + MAX_SIZE_LENGTH, '-') << PCL::NOFLUSH;
+    std::cout << std::string(MAX_NAME_LENGTH + MAX_TYPE_LENGTH + MAX_SIZE_LENGTH, (UI::TABLE_LINE_CHAR)[0]) << PCL::NOFLUSH;
 
     //Less memory usage :)
     std::string sizestr;

@@ -1,3 +1,40 @@
 {
-    
+    "PCL": {
+        "RED": "\u001b[91m",
+        "BLUE": "\u001b[94m",
+        "YELLOW": "\u001b[93m",
+        "CYAN": "\u001b[96m",
+        "GRAY": "\u001b[90m",
+        "END": "\u001b[0m",
+        "UNDERLINE": "\u001b[4m",
+        "BOLD": "\u001b[1m",
+        "ITALIC": "\u001b[3m",
+        "NOFLUSH": "\n"
+    },
+
+    "UI": {
+        "DIR_TYPE_NAME": "DIR",
+        "FILE_TYPE_NAME": "FILE",
+        "DEFAULT_TYPE_NAME": "N/A",
+        "GB_EXT": " GB",
+        "MB_EXT": " MB",
+        "KB_EXT": " KB",
+        "B_EXT": " B",
+        "COMMAND_LINE_LINE": "$> ",
+        "PRE_PROMPT": "(",
+        "POST_PROMPT": ")",
+        "FIRST_ROW_STR": "Name",
+        "SEC_ROW_STR": "Type",
+        "THIRD_ROW_STR": "Size",
+        "PIPE_DOWN_STR": "├",
+        "VERTICAL_PIPE_STR": "│",
+        "DIR_ARROW_STR": "┼> ",
+        "CROSS_PIPE_STR": "┼",
+        "FILE_ARROW_STR": "> ",
+        "EMPTY_DEPTH_SEPSTR": "      ",
+        "FILLED_DEPTH_SEPSTR": "──────",
+        "DOTDOTDOT_STR": " ...",
+        "KEY_AND_VALUE_SEPSTR": ": ",
+        "TABLE_LINE_CHAR":"_"
+    }
 }
