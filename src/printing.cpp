@@ -13,6 +13,10 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <filesystem>
+#include <cmath>
+#include <windows.h>
+namespace fs = std::filesystem;
 #include "constants.hpp"
 
 #include <nlohmann/json.hpp>
@@ -52,9 +56,61 @@ typedef struct _cdict {
 } Contentdict;
 
 
+class Progress_bar {
+private:
+    double lambda;
+    double processed = 0.0;
+
+public:
+    uintmax_t total = 0;
+
+    bool update_progressbar() {
+        if (UI::PROGRESS_BAR_LENGTH < 2) return true;
+
+        if(std::floor(processed) == std::floor(processed + lambda)) {
+            processed += lambda;
+            return false;
+        }
+
+        processed += lambda;
+
+        std::cout << "\r<";
+        for(int i = 0; i <= std::floor(processed); i++){
+            std::cout << "=";
+        }
+        for(int i = std::floor(processed); i < UI::PROGRESS_BAR_LENGTH - 1; i++){
+            std::cout << " ";
+        }
+        std::cout << ">";
+
+        if(std::floor(processed) >= UI::PROGRESS_BAR_LENGTH) std::cout << std::endl;
+
+        return false;
+    }
+
+    Progress_bar(const fs::directory_entry& entry) {
+        for (const auto& _ : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied))
+            total++;
+
+        lambda = double(UI::PROGRESS_BAR_LENGTH) / double(total);
+    }
+};
+
+fs::path get_executable_dir() {
+    char buffer[MAX_PATH];
+
+
+    GetModuleFileNameA(nullptr, buffer, MAX_PATH);
+    fs::path exe_path(buffer);
+
+    return exe_path.parent_path();
+}
+
+
+
 bool load_json(){
 
-    std::ifstream file("config.json");
+    std::ifstream file(get_executable_dir() / "config.json");
     if(!file.is_open()){
         std::cerr << "ifstream: config.json could not be loaded." << std::endl;
         return 1;
@@ -89,6 +145,7 @@ bool load_json(){
         if (ui.contains("KB_EXT"))               UI::KB_EXT                  = ui["KB_EXT"];
         if (ui.contains("B_EXT"))                UI::B_EXT                   = ui["B_EXT"];
         if (ui.contains("COMMAND_LINE_LINE"))    UI::COMMAND_LINE_LINE       = ui["COMMAND_LINE_LINE"];
+        if (ui.contains("PROGRESS_BAR_LENGTH"))  UI::PROGRESS_BAR_LENGTH     = ui["PROGRESS_BAR_LENGTH"];
         if (ui.contains("PRE_PROMPT"))           UI::PRE_PROMPT              = ui["PRE_PROMPT"];
         if (ui.contains("POST_PROMPT"))          UI::POST_PROMPT             = ui["POST_PROMPT"];
         if (ui.contains("FIRST_ROW_STR"))        UI::FIRST_ROW_STR           = ui["FIRST_ROW_STR"];

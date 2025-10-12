@@ -21,6 +21,7 @@
         "KB_EXT": " KB",
         "B_EXT": " B",
         "COMMAND_LINE_LINE": "$> ",
+        "PROGRESS_BAR_LENGTH": 23,
         "PRE_PROMPT": "(",
         "POST_PROMPT": ")",
         "FIRST_ROW_STR": "Name",

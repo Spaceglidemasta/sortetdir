@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <functional>
 #include <cstdlib>
+#include <memory>
 #include "printing.cpp"
 
 
@@ -64,9 +65,14 @@ bool is_hidden(const std::filesystem::directory_entry& entry) {
 
 
 
-Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = nullptr) {
+Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = nullptr, Progress_bar* pprgbar = nullptr, uint16_t depth = 0) {
 
     Contentdict currentdict;
+    depth++;
+
+    if(pprgbar == nullptr){
+        pprgbar = new Progress_bar(entry);
+    }
 
     fs::file_status status = entry.symlink_status();
     if (fs::is_symlink(status)){
@@ -83,7 +89,10 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
             
             for (const auto& current_entry : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied)) {
 
-                Contentdict nextdict = get_size(current_entry, phomedir);
+
+                Contentdict nextdict = get_size(current_entry, phomedir, pprgbar, depth);
+
+                if(depth == 1) pprgbar -> update_progressbar();
 
                 nextdict.home_dir = phomedir;
 
@@ -93,6 +102,8 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
 
                 currentdict.subdir.push_back(std::move(nextdict));
             }
+
+            
 
         }
         catch (const fs::filesystem_error& _) {
@@ -109,6 +120,8 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
 
     //is always done, doesnt care about entry type
     currentdict.path = entry.path().string();
+
+    if(depth == 1) delete pprgbar;
 
     return currentdict;
 }
