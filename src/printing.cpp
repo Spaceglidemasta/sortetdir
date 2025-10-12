@@ -112,7 +112,7 @@ bool load_json(){
 
     std::ifstream file(get_executable_dir() / "config.json");
     if(!file.is_open()){
-        std::cerr << "ifstream: config.json could not be loaded." << std::endl;
+        std::cerr << "ifstream: config.json could not be loaded.: " << get_executable_dir() / "config.json" << std::endl;
         return 1;
     }
 
@@ -339,6 +339,8 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
  * @param cdict The contentdict that is supposed to be printed.
  */
 void print_cdict_table(const Contentdict& cdict){
+
+    std::cout << std::endl;
 
     if(cdict.subdir.empty()){
         std::cout << info_str("This directory is empty.") << std::endl;

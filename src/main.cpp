@@ -23,7 +23,7 @@
 
 
 
-//TODO LINUX COMPATIBILITY!!!!!
+//! LINUX COMPATIBILITY!!!!!
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -31,7 +31,7 @@
 
 namespace fs = std::filesystem;
 
-
+//returns the cmd-prompt string, using the UI and PCL namespace
 std::string get_cmd_prompt(Contentdict cdict){
     
     std::ostringstream oss;
@@ -46,20 +46,15 @@ typedef struct _Command {
     std::vector<std::string> args;
 } Command;
 
-//Tests if the given :param:entry is hidden. Uses a Libary from 1985 for this.
+//Tests if the given directory is hidden. Uses a Libary from 1985 for this.
 bool is_hidden(const std::filesystem::directory_entry& entry) {
-    const auto& path = entry.path();
+    
+    DWORD attrs = GetFileAttributesW(entry.path().wstring().c_str());
 
-    #ifdef _WIN32
-        DWORD attrs = GetFileAttributesW(path.wstring().c_str());
-        if (attrs == INVALID_FILE_ATTRIBUTES) return false;
-        return (attrs & FILE_ATTRIBUTE_HIDDEN) != 0;
-    //Linux / Unix case
-    #else
-        //invisible files start with '.' on unix
-        std::string name = path.filename().string();
-        return !name.empty() && name[0] == '.';
-    #endif
+    //debug:
+    //if(entry.path().filename().string() == ".git")std::cout << entry.path().filename().string() << attrs << ((attrs & FILE_ATTRIBUTE_HIDDEN ) != 0) << std::endl;
+
+    return (attrs & (FILE_ATTRIBUTE_HIDDEN)) != 0; //return (attrs == FAH) 
 }
 
 
@@ -96,8 +91,6 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
 
                 nextdict.home_dir = phomedir;
 
-                if(is_hidden(current_entry)) currentdict.is_invisible = true;
-
                 currentdict.value += nextdict.value;
 
                 currentdict.subdir.push_back(std::move(nextdict));
@@ -118,6 +111,7 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
         currentdict.type = UI::FILE_TYPE_NAME;
     }
 
+    currentdict.is_invisible = is_hidden(entry);
     //is always done, doesnt care about entry type
     currentdict.path = entry.path().string();
 
