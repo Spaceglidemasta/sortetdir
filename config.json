@@ -8,8 +8,7 @@
         "END": "\u001b[0m",
         "UNDERLINE": "\u001b[4m",
         "BOLD": "\u001b[1m",
-        "ITALIC": "\u001b[3m",
-        "NOFLUSH": "\n"
+        "ITALIC": "\u001b[3m"
     },
 
     "UI": {

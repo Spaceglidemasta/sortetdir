@@ -26,7 +26,7 @@ namespace PCL
     std::string UNDERLINE                   = "\033[4m";
     std::string BOLD                        = "\033[1m";
     std::string ITALIC                      = "\033[3m";
-    std::string NOFLUSH                     = "\n"; //this is just "\n"
+    std::string NOFLUSH                     = "\n"; //this is just "\n". Also not included in config.json
 }
 
 //UI namespace. Already contains default values.

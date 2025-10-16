@@ -131,10 +131,13 @@ nlohmann: 963.14 KB
 ├──────┼> hedley: 91.58 KB
 │      │      ├> hedley.hpp: 86.05 KB
 │      │      ├> hedley_undef.hpp: 5.53 KB
-
 Size of current directiory: 963.14 KB
+```
+```bash
 (sortetdircpp\include\nlohmann)$> cd detail
 (sortetdircpp\include\nlohmann\detail)$> table
+```
+```bash
 Name                          Type            Size
 __________________________________________________
 input                         DIR        234.99 KB

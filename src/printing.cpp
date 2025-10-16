@@ -83,7 +83,7 @@ public:
         }
         std::cout << ">";
 
-        if(std::floor(processed) >= UI::PROGRESS_BAR_LENGTH) std::cout << std::endl;
+        //if(std::floor(processed) >= UI::PROGRESS_BAR_LENGTH) std::cout << std::endl;
 
         return false;
     }
@@ -96,9 +96,8 @@ public:
     }
 };
 
-fs::path get_executable_dir() {
+fs::path get_path_of_exe() {
     char buffer[MAX_PATH];
-
 
     GetModuleFileNameA(nullptr, buffer, MAX_PATH);
     fs::path exe_path(buffer);
@@ -110,9 +109,9 @@ fs::path get_executable_dir() {
 
 bool load_json(){
 
-    std::ifstream file(get_executable_dir() / "config.json");
+    std::ifstream file(get_path_of_exe() / "config.json");
     if(!file.is_open()){
-        std::cerr << "ifstream: config.json could not be loaded.: " << get_executable_dir() / "config.json" << std::endl;
+        std::cerr << "ifstream: config.json could not be loaded.: " << get_path_of_exe() / "config.json" << std::endl;
         return 1;
     }
 
@@ -131,7 +130,6 @@ bool load_json(){
         if (pcl.contains("UNDERLINE"))          PCL::UNDERLINE               = pcl["UNDERLINE"];
         if (pcl.contains("BOLD"))               PCL::BOLD                    = pcl["BOLD"];
         if (pcl.contains("ITALIC"))             PCL::ITALIC                  = pcl["ITALIC"];
-        if (pcl.contains("NOFLUSH"))            PCL::NOFLUSH                 = pcl["NOFLUSH"];
     }
 
     if (json_data.contains("UI")) {
@@ -340,12 +338,12 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
  */
 void print_cdict_table(const Contentdict& cdict){
 
-    std::cout << std::endl;
-
     if(cdict.subdir.empty()){
         std::cout << info_str("This directory is empty.") << std::endl;
         return;
     }
+
+    std::cout << std::endl;
 
     //the final table that is printed using setw()
     std::vector<Contentdict> table = cdict.subdir;

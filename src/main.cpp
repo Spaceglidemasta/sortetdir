@@ -23,7 +23,7 @@
 
 
 
-//! LINUX COMPATIBILITY!!!!!
+//TODO! LINUX COMPATIBILITY!!!!!
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -50,7 +50,6 @@ typedef struct _Command {
 bool is_hidden(const std::filesystem::directory_entry& entry) {
     
     DWORD attrs = GetFileAttributesW(entry.path().wstring().c_str());
-
     //debug:
     //if(entry.path().filename().string() == ".git")std::cout << entry.path().filename().string() << attrs << ((attrs & FILE_ATTRIBUTE_HIDDEN ) != 0) << std::endl;
 
@@ -65,9 +64,6 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
     Contentdict currentdict;
     depth++;
 
-    if(pprgbar == nullptr){
-        pprgbar = new Progress_bar(entry);
-    }
 
     fs::file_status status = entry.symlink_status();
     if (fs::is_symlink(status)){
@@ -84,30 +80,32 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
             
             for (const auto& current_entry : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied)) {
 
-
+                //start the next recursion
                 Contentdict nextdict = get_size(current_entry, phomedir, pprgbar, depth);
 
-                if(depth == 1) pprgbar -> update_progressbar();
+                //only load pprgbar in depth 1. Can be changed in the future to handle more accuracy, but needs to be extended to count these to "total"
+                if(depth == 1 && pprgbar) pprgbar -> update_progressbar();
 
+                //home directory for :cmd:"cd"
                 nextdict.home_dir = phomedir;
 
+                //calculate the size (the important part here)
                 currentdict.value += nextdict.value;
 
                 currentdict.subdir.push_back(std::move(nextdict));
             }
-
-            
-
         }
         catch (const fs::filesystem_error& _) {
             
+            //some dirs can not be scanned because they are symlinks.
+            //these are catched here and increase .symlinks_skipped
             currentdict.symlinks_skipped += 1;
         }
     } 
     else if (fs::is_regular_file(status)){
 
         currentdict.key = entry.path().filename().string();
-        currentdict.value +=  entry.file_size();
+        currentdict.value +=  entry.file_size(); //final filesize that gets recursed up
         currentdict.type = UI::FILE_TYPE_NAME;
     }
 
@@ -115,32 +113,31 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
     //is always done, doesnt care about entry type
     currentdict.path = entry.path().string();
 
-    if(depth == 1) delete pprgbar;
-
     return currentdict;
 }
 
+//TODO fix this mess
 Contentdict g_home_dir;
 
 int main(int argc, char const *argv[]){
 
     load_json();
-
     /*
         Init the fs::directory_entry for get_size() and call.
         This is always done
     */
-    fs::directory_entry cwd(fs::current_path());
+    fs::directory_entry cwd_entry(fs::current_path());
     
-    Contentdict cwd_dict;
-    Contentdict* p_cwd_dict = &cwd_dict;
+    Contentdict cdict;
+    Contentdict* pcdict = &cdict;
 
-    cwd_dict  = get_size(cwd, p_cwd_dict);
+    Progress_bar prgbar(cwd_entry);
+    cdict  = get_size(cwd_entry, pcdict, &prgbar); //* ------> Core of the program
 
-    g_home_dir = cwd_dict;
+    g_home_dir = cdict;
 
     //Print the final table
-    print_cdict_table(cwd_dict);
+    print_cdict_table(cdict);
 
     //json-object-a-like to store {command-name : command-func}
     std::unordered_map<std::string, std::function<void(const Command&, Contentdict*&)>> COMMANDS;
@@ -291,10 +288,11 @@ int main(int argc, char const *argv[]){
         
     std::string cmd_input; //cmd-line input
 
+
     //command line UI
     while (true){
 
-        std::cout << get_cmd_prompt(*p_cwd_dict);
+        std::cout << get_cmd_prompt(*pcdict);
         if(!std::getline(std::cin, cmd_input)){
             throw std::invalid_argument("Input could not be gathered.");
         }
@@ -318,7 +316,7 @@ int main(int argc, char const *argv[]){
         //idk how the f this object is called. Auto does tho.
         auto it = COMMANDS.find(fcmd.name);
         if (it != COMMANDS.end()) {
-            it -> second(fcmd, p_cwd_dict);
+            it -> second(fcmd, pcdict);
         }
         else {
             std::cout << warning_str("Unknown command: ") << fcmd.name << "\n";
