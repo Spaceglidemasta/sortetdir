@@ -116,8 +116,6 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
     return currentdict;
 }
 
-//TODO fix this mess
-Contentdict g_home_dir;
 
 int main(int argc, char const *argv[]){
 
@@ -133,8 +131,6 @@ int main(int argc, char const *argv[]){
 
     Progress_bar prgbar(cwd_entry);
     cdict  = get_size(cwd_entry, pcdict, &prgbar); //* ------> Core of the program
-
-    g_home_dir = cdict;
 
     //Print the final table
     print_cdict_table(cdict);
@@ -177,7 +173,7 @@ int main(int argc, char const *argv[]){
 
         //goes to the home directory, just like in Linux. Because pwd'ing on "cd" is stupid.
         if (cmd.args.empty()) {
-            cdict = &g_home_dir; //cd logic
+            cdict = cdict->home_dir; //cd logic
             return;
         }
 

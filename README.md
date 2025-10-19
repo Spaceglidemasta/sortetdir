@@ -28,8 +28,10 @@ git clone https://github.com/nlohmann/json.git include/json
 
 and then compile it using the C++ compiler of your choice.
 
-__I also recommend adding the directory to PATH and changing the .exe
-name to something that suits your usage.__ 
+__IMPORTANT: If you use the Makefile for your compilation, you need to add a "./" before the "sortetdir.exe" line, because I'm on w10 and I use my own Makefile reader and therefore am using cmd syntax.__
+
+I also recommend adding the directory to PATH and changing the .exe
+name to something that suits your usage.
 
 
 ## Usage
