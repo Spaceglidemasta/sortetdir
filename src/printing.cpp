@@ -23,6 +23,8 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 #include <fstream>
 
+//TODO: Printing update -
+
 constexpr uint16_t MAX_NAME_LENGTH  = 30;
 constexpr uint16_t MAX_TYPE_LENGTH  = 8;
 constexpr uint16_t MAX_SIZE_LENGTH  = 12;
@@ -40,32 +42,32 @@ constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default
 //     uintmax_t size;     //Third column
 // } Row;
 
-typedef struct _cdict {
+struct Contentdict {
     
     std::string key = "";                       //Key / name of the file / directory.
     std::string type = UI::DEFAULT_TYPE_NAME;   //This is for printing only and does not effect code-logic. "DIR", "FILE" or default: "N/A"
     uintmax_t value = 0;                        //Size in Bits. Can be converted to more usefull size-units with size_ext(cdict.value) -> str.
-    std::vector<struct _cdict> subdir;          //Content of the directory.
+    std::vector<Contentdict> subdir;          //Content of the directory.
 
-    struct _cdict* parent = nullptr;            //Pointer to parent dir, default is nullptr.
+    Contentdict* parent = nullptr;            //Pointer to parent dir, default is nullptr.
     bool is_invisible = false;                  //Some directories are not visible under some selected OS options. On Linux these files start with "."
     std::string path = UI::DEFAULT_TYPE_NAME;   //String of the Path; for printing only; does not effect code-logic. "N/A" is default.
     uint16_t symlinks_skipped = 0;              //Counts how many Symlinks have been skipped / are contained because of redundance.
-    struct _cdict* home_dir = nullptr;          //the home directory / the dir the program starts in. Is passed onto every subdir.
+    Contentdict* home_dir = nullptr;          //the home directory / the dir the program starts in. Is passed onto every subdir.
 
-} Contentdict;
+};
 
 
 class Progress_bar {
-private:
+    private:
     double lambda;
     double processed = 0.0;
 
-public:
+    public:
     uintmax_t total = 0;
 
     bool update_progressbar() {
-        if (UI::PROGRESS_BAR_LENGTH < 2) return true;
+        if (UI::PRGBAR_T < 2) return true;
 
         if(std::floor(processed) == std::floor(processed + lambda)) {
             processed += lambda;
@@ -74,16 +76,16 @@ public:
 
         processed += lambda;
 
-        std::cout << "\r<";
+        std::cout << "\r" << UI::PRGBAR_BEGINNING;
         for(int i = 0; i <= std::floor(processed); i++){
-            std::cout << "=";
+            std::cout << UI::PRGBAR_FILLER;
         }
-        for(int i = std::floor(processed); i < UI::PROGRESS_BAR_LENGTH - 1; i++){
-            std::cout << " ";
+        for(int i = std::floor(processed); i < UI::PRGBAR_T - 1; i++){
+            std::cout << UI::PRGBAR_EMPTY;
         }
-        std::cout << ">";
+        std::cout << UI::PRGBAR_END;
 
-        //if(std::floor(processed) >= UI::PROGRESS_BAR_LENGTH) std::cout << std::endl;
+        //if(std::floor(processed) >= UI::PRGBAR_T) std::cout << std::endl;
 
         return false;
     }
@@ -92,7 +94,7 @@ public:
         for (const auto& _ : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied))
             total++;
 
-        lambda = double(UI::PROGRESS_BAR_LENGTH) / double(total);
+        lambda = double(UI::PRGBAR_T) / double(total);
     }
 };
 
@@ -135,31 +137,35 @@ bool load_json(){
     if (json_data.contains("UI")) {
         auto& ui = json_data["UI"];
 
-        if (ui.contains("DIR_TYPE_NAME"))        UI::DIR_TYPE_NAME           = ui["DIR_TYPE_NAME"];
-        if (ui.contains("FILE_TYPE_NAME"))       UI::FILE_TYPE_NAME          = ui["FILE_TYPE_NAME"];
-        if (ui.contains("DEFAULT_TYPE_NAME"))    UI::DEFAULT_TYPE_NAME       = ui["DEFAULT_TYPE_NAME"];
-        if (ui.contains("GB_EXT"))               UI::GB_EXT                  = ui["GB_EXT"];
-        if (ui.contains("MB_EXT"))               UI::MB_EXT                  = ui["MB_EXT"];
-        if (ui.contains("KB_EXT"))               UI::KB_EXT                  = ui["KB_EXT"];
-        if (ui.contains("B_EXT"))                UI::B_EXT                   = ui["B_EXT"];
-        if (ui.contains("COMMAND_LINE_LINE"))    UI::COMMAND_LINE_LINE       = ui["COMMAND_LINE_LINE"];
-        if (ui.contains("PROGRESS_BAR_LENGTH"))  UI::PROGRESS_BAR_LENGTH     = ui["PROGRESS_BAR_LENGTH"];
-        if (ui.contains("PRE_PROMPT"))           UI::PRE_PROMPT              = ui["PRE_PROMPT"];
-        if (ui.contains("POST_PROMPT"))          UI::POST_PROMPT             = ui["POST_PROMPT"];
-        if (ui.contains("FIRST_ROW_STR"))        UI::FIRST_ROW_STR           = ui["FIRST_ROW_STR"];
-        if (ui.contains("SEC_ROW_STR"))          UI::SEC_ROW_STR             = ui["SEC_ROW_STR"];
-        if (ui.contains("THIRD_ROW_STR"))        UI::THIRD_ROW_STR           = ui["THIRD_ROW_STR"];
-        if (ui.contains("PIPE_DOWN_STR"))        UI::PIPE_DOWN_STR           = ui["PIPE_DOWN_STR"];
-        if (ui.contains("VERTICAL_PIPE_STR"))    UI::VERTICAL_PIPE_STR       = ui["VERTICAL_PIPE_STR"];
-        if (ui.contains("DIR_ARROW_STR"))        UI::DIR_ARROW_STR           = ui["DIR_ARROW_STR"];
-        if (ui.contains("CROSS_PIPE_STR"))       UI::CROSS_PIPE_STR          = ui["CROSS_PIPE_STR"];
-        if (ui.contains("FILE_ARROW_STR"))       UI::FILE_ARROW_STR          = ui["FILE_ARROW_STR"];
-        if (ui.contains("EMPTY_DEPTH_SEPSTR"))   UI::EMPTY_DEPTH_SEPSTR      = ui["EMPTY_DEPTH_SEPSTR"];
-        if (ui.contains("FILLED_DEPTH_SEPSTR"))  UI::FILLED_DEPTH_SEPSTR     = ui["FILLED_DEPTH_SEPSTR"];
-        if (ui.contains("DOTDOTDOT_STR"))        UI::DOTDOTDOT_STR           = ui["DOTDOTDOT_STR"];
-        if (ui.contains("KEY_AND_VALUE_SEPSTR")) UI::KEY_AND_VALUE_SEPSTR    = ui["KEY_AND_VALUE_SEPSTR"];
+        if (ui.contains("DIR_TYPE_NAME"))           UI::DIR_TYPE_NAME           = ui["DIR_TYPE_NAME"];
+        if (ui.contains("FILE_TYPE_NAME"))          UI::FILE_TYPE_NAME          = ui["FILE_TYPE_NAME"];
+        if (ui.contains("DEFAULT_TYPE_NAME"))       UI::DEFAULT_TYPE_NAME       = ui["DEFAULT_TYPE_NAME"];
+        if (ui.contains("GB_EXT"))                  UI::GB_EXT                  = ui["GB_EXT"];
+        if (ui.contains("MB_EXT"))                  UI::MB_EXT                  = ui["MB_EXT"];
+        if (ui.contains("KB_EXT"))                  UI::KB_EXT                  = ui["KB_EXT"];
+        if (ui.contains("B_EXT"))                   UI::B_EXT                   = ui["B_EXT"];
+        if (ui.contains("COMMAND_LINE_LINE"))       UI::COMMAND_LINE_LINE       = ui["COMMAND_LINE_LINE"];
+        if (ui.contains("PRGBAR_T"))                UI::PRGBAR_T                = ui["PRGBAR_T"];
+        if (ui.contains("PRGBAR_BEGINNING"))        UI::PRGBAR_BEGINNING        = ui["PRGBAR_BEGINNING"];
+        if (ui.contains("PRGBAR_FILLER"))           UI::PRGBAR_FILLER           = ui["PRGBAR_FILLER"];
+        if (ui.contains("PRGBAR_EMPTY"))            UI::PRGBAR_EMPTY            = ui["PRGBAR_EMPTY"];
+        if (ui.contains("PRGBAR_END"))              UI::PRGBAR_END              = ui["PRGBAR_END"];
 
-        if(ui.contains("TABLE_LINE_CHAR"))        UI::TABLE_LINE_CHAR          = ui["TABLE_LINE_CHAR"];
+        if (ui.contains("PRE_PROMPT"))              UI::PRE_PROMPT              = ui["PRE_PROMPT"];
+        if (ui.contains("POST_PROMPT"))             UI::POST_PROMPT             = ui["POST_PROMPT"];
+        if (ui.contains("FIRST_ROW_STR"))           UI::FIRST_ROW_STR           = ui["FIRST_ROW_STR"];
+        if (ui.contains("SEC_ROW_STR"))             UI::SEC_ROW_STR             = ui["SEC_ROW_STR"];
+        if (ui.contains("THIRD_ROW_STR"))           UI::THIRD_ROW_STR           = ui["THIRD_ROW_STR"];
+        if (ui.contains("PIPE_DOWN_STR"))           UI::PIPE_DOWN_STR           = ui["PIPE_DOWN_STR"];
+        if (ui.contains("VERTICAL_PIPE_STR"))       UI::VERTICAL_PIPE_STR       = ui["VERTICAL_PIPE_STR"];
+        if (ui.contains("DIR_ARROW_STR"))           UI::DIR_ARROW_STR           = ui["DIR_ARROW_STR"];
+        if (ui.contains("CROSS_PIPE_STR"))          UI::CROSS_PIPE_STR          = ui["CROSS_PIPE_STR"];
+        if (ui.contains("FILE_ARROW_STR"))          UI::FILE_ARROW_STR          = ui["FILE_ARROW_STR"];
+        if (ui.contains("EMPTY_DEPTH_SEPSTR"))      UI::EMPTY_DEPTH_SEPSTR      = ui["EMPTY_DEPTH_SEPSTR"];
+        if (ui.contains("FILLED_DEPTH_SEPSTR"))     UI::FILLED_DEPTH_SEPSTR     = ui["FILLED_DEPTH_SEPSTR"];
+        if (ui.contains("DOTDOTDOT_STR"))           UI::DOTDOTDOT_STR           = ui["DOTDOTDOT_STR"];
+        if (ui.contains("KEY_AND_VALUE_SEPSTR"))    UI::KEY_AND_VALUE_SEPSTR    = ui["KEY_AND_VALUE_SEPSTR"];
+        if(ui.contains("TABLE_LINE_CHAR"))          UI::TABLE_LINE_CHAR         = ui["TABLE_LINE_CHAR"];
     }
 
     return 0;

@@ -20,7 +20,13 @@
         "KB_EXT": " KB",
         "B_EXT": " B",
         "COMMAND_LINE_LINE": "$> ",
-        "PROGRESS_BAR_LENGTH": 23,
+
+        "PRGBAR_T": 50,
+        "PRGBAR_BEGINNING":"[",
+        "PRGBAR_END":"]",
+        "PRGBAR_FILLER":"|",
+        "PRGBAR_EMPTY":" ",
+
         "PRE_PROMPT": "(",
         "POST_PROMPT": ")",
         "FIRST_ROW_STR": "Name",

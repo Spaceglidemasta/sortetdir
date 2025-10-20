@@ -41,10 +41,10 @@ std::string get_cmd_prompt(Contentdict cdict){
 }
 
 //Command struct with .name and .args
-typedef struct _Command {
+struct Command {
     std::string name;
     std::vector<std::string> args;
-} Command;
+};
 
 //Tests if the given directory is hidden. Uses a Libary from 1985 for this.
 bool is_hidden(const std::filesystem::directory_entry& entry) {
@@ -67,6 +67,7 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
 
     fs::file_status status = entry.symlink_status();
     if (fs::is_symlink(status)){
+        currentdict.symlinks_skipped +=1;
         return currentdict;
     }
 
@@ -131,6 +132,8 @@ int main(int argc, char const *argv[]){
 
     Progress_bar prgbar(cwd_entry);
     cdict  = get_size(cwd_entry, pcdict, &prgbar); //* ------> Core of the program
+
+    std::cout << std::endl;
 
     //Print the final table
     print_cdict_table(cdict);

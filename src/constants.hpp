@@ -44,7 +44,11 @@ namespace UI
     std::string PRE_PROMPT              = "[";
     std::string POST_PROMPT             = "]";
 
-    size_t PROGRESS_BAR_LENGTH          = 23;
+    size_t PRGBAR_T          = 23;
+    std::string PRGBAR_BEGINNING        = "[";
+    std::string PRGBAR_FILLER           = "|";
+    std::string PRGBAR_EMPTY            = " ";
+    std::string PRGBAR_END              = "]";
 
     std::string FIRST_ROW_STR           = "Name";
     std::string SEC_ROW_STR             = "Type";
