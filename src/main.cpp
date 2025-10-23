@@ -23,7 +23,7 @@
 
 
 
-//TODO! LINUX COMPATIBILITY!!!!!
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -48,12 +48,20 @@ struct Command {
 
 //Tests if the given directory is hidden. Uses a Libary from 1985 for this.
 bool is_hidden(const std::filesystem::directory_entry& entry) {
-    
-    DWORD attrs = GetFileAttributesW(entry.path().wstring().c_str());
+
     //debug:
     //if(entry.path().filename().string() == ".git")std::cout << entry.path().filename().string() << attrs << ((attrs & FILE_ATTRIBUTE_HIDDEN ) != 0) << std::endl;
 
+    #ifdef _WIN32
+    DWORD attrs = GetFileAttributesW(entry.path().wstring().c_str());
     return (attrs & (FILE_ATTRIBUTE_HIDDEN)) != 0; //return (attrs == FAH) 
+    #else //unix
+    //unix and macos hidden filenames and dirs start with '.'
+    const auto filename = entry.path().filename().string();
+    return !filename.empty() && filename[0] == '.';
+
+    #endif
+    
 }
 
 

@@ -15,7 +15,15 @@
 #include <vector>
 #include <filesystem>
 #include <cmath>
-#include <windows.h>
+
+#ifdef _WIN32
+    #include <windows.h>
+#elif __APPLE__
+    #include <mach-o/dyld.h>
+#else 
+    #include <unistd.h>
+#endif
+
 namespace fs = std::filesystem;
 #include "constants.hpp"
 
@@ -66,6 +74,7 @@ class Progress_bar {
     public:
     uintmax_t total = 0;
 
+
     bool update_progressbar() {
         if (UI::PRGBAR_T < 2) return true;
 
@@ -98,17 +107,41 @@ class Progress_bar {
     }
 };
 
+//returns the fs::path of the location of the .exe
 fs::path get_path_of_exe() {
     char buffer[MAX_PATH];
 
-    GetModuleFileNameA(nullptr, buffer, MAX_PATH);
-    fs::path exe_path(buffer);
+    #ifdef _WIN32
+
+        GetModuleFileNameA(nullptr, buffer, MAX_PATH);
+        fs::path exe_path(buffer);
+
+    #elif __APPLE__
+        uint32_t size = sizeof(buffer);
+        if (_NSGetExecutablePath(buffer, &size) == 0)
+            fs::path exe_path(buffer);
+        else {
+            // Fallback: buffer too small, allocate dynamically
+            std::string path(size, '\0');
+            _NSGetExecutablePath(path.data(), &size);
+            fs::path exe_path(path);
+        }
+    #else
+        ssize_t count = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+        if (count != -1)
+            buffer[count] = '\0';
+        else
+            buffer[0] = '\0';
+    #endif
 
     return exe_path.parent_path();
 }
 
 
-
+/*
+    loads all the vars from config.json
+    uses nlohmann/json
+*/
 bool load_json(){
 
     std::ifstream file(get_path_of_exe() / "config.json");
@@ -172,6 +205,16 @@ bool load_json(){
 }
 
 
+/*
+    returns the path of the cdict relative to its .home_dir
+
+    Example:
+    cdict.path = "C:Users\Nutzer\Documents\programming scripts\C++"
+    cdict.home_dir = "C:Users\Nutzer\Documents"
+
+    returns -> "Documents\programming scripts\C++"
+
+*/
 std::string short_path(const Contentdict& cdict) {
     if (cdict.home_dir == nullptr) {
         return cdict.key;
