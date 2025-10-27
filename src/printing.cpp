@@ -20,8 +20,12 @@
     #include <windows.h>
 #elif __APPLE__
     #include <mach-o/dyld.h>
-#else 
+#else //unix
     #include <unistd.h>
+#endif
+
+#ifndef MAX_PATH
+    #define MAX_PATH 260
 #endif
 
 namespace fs = std::filesystem;
@@ -118,8 +122,9 @@ fs::path get_path_of_exe() {
 
     #elif __APPLE__
         uint32_t size = sizeof(buffer);
-        if (_NSGetExecutablePath(buffer, &size) == 0)
+        if (_NSGetExecutablePath(buffer, &size) == 0){
             fs::path exe_path(buffer);
+        }
         else {
             // Fallback: buffer too small, allocate dynamically
             std::string path(size, '\0');
@@ -128,10 +133,14 @@ fs::path get_path_of_exe() {
         }
     #else
         ssize_t count = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-        if (count != -1)
+        if (count != -1) {
             buffer[count] = '\0';
-        else
+        }
+        else {
             buffer[0] = '\0';
+        }
+        fs::path exe_path(buffer);
+        
     #endif
 
     return exe_path.parent_path();

@@ -7,26 +7,13 @@
     Github - @spaceglidemasta
 */
 
-#include <iostream>
-#include <iomanip>
-#include <string>
-#include <sstream>
-#include <vector>
-#include <filesystem>
-#include <cmath>
+
 #include <algorithm>
 #include <unordered_map>
 #include <functional>
 #include <cstdlib>
 #include <memory>
 #include "printing.cpp"
-
-
-
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 
 namespace fs = std::filesystem;
@@ -53,12 +40,13 @@ bool is_hidden(const std::filesystem::directory_entry& entry) {
     //if(entry.path().filename().string() == ".git")std::cout << entry.path().filename().string() << attrs << ((attrs & FILE_ATTRIBUTE_HIDDEN ) != 0) << std::endl;
 
     #ifdef _WIN32
-    DWORD attrs = GetFileAttributesW(entry.path().wstring().c_str());
-    return (attrs & (FILE_ATTRIBUTE_HIDDEN)) != 0; //return (attrs == FAH) 
+        DWORD attrs = GetFileAttributesW(entry.path().wstring().c_str());
+        return (attrs & (FILE_ATTRIBUTE_HIDDEN)) != 0; //return (attrs == FAH)
+
     #else //unix
-    //unix and macos hidden filenames and dirs start with '.'
-    const auto filename = entry.path().filename().string();
-    return !filename.empty() && filename[0] == '.';
+        //unix and macos hidden filenames and dirs start with '.'
+        const auto filename = entry.path().filename().string();
+        return !filename.empty() && filename[0] == '.';
 
     #endif
     
@@ -280,7 +268,12 @@ int main(int argc, char const *argv[]){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
         }
 
-        std::system("cls"); // is this safe?
+        #ifdef _WIN32
+            std::system("cls");
+        #else // linux & apple
+            std::system("clear");
+        #endif
+        
     };
 
     //Prints Working Directory. Linux's "pwd". I hate that on w64 "cd" pwd's
