@@ -19,7 +19,7 @@ vcpkg install nlohmann-json
 ```
 
 ## Installation
-You can install this project via
+You can install this project with
 ```bash
 git clone https://github.com/Spaceglidemasta/sortetdir
 cd sortetdir\include
@@ -28,10 +28,25 @@ git clone https://github.com/nlohmann/json.git include/json
 
 and then compile it using the C++ compiler of your choice.
 
-__IMPORTANT: If you use the Makefile for your compilation, you need to add a "./" before the "sortetdir.exe" line, because I'm on w10 and I use my own Makefile reader and therefore am using cmd syntax.__
-
 I also recommend adding the directory to PATH and changing the .exe
 name to something that suits your usage.
+
+## Compilation
+
+```bash
+make unix
+```
+or
+```bat
+make win
+```
+if you somehow got hands on a windows makefile.
+
+Alternativly, you can compile it manually via:
+```bash
+g++ src/main.cpp -o sortetdir -std=c++17 -lm -Iinclude
+```
+
 
 
 ## Usage

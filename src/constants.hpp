@@ -1,18 +1,30 @@
 #pragma once
 #include <iostream>
 
-//IMPORTANT: https://tenor.com/view/aple-gif-27463919
-
 /*
     Yes most of these "constants" are not constant.
     This is for purpose of the json read logic.
 */
 
-bool WHAT_ENABLED = false; //Enables support for my upcoming what program.
+bool WHAT_ENABLED = false; //Enables support for my upcoming "what" program.
 
 constexpr double_t KB  = 1024.0;
 constexpr double_t MB  = (1024.0 * KB);
 constexpr double_t GB  = (1024.0 * MB);
+
+
+//Options namespace containing options that CANNOT be changed in the json file
+namespace CMPT_OPTIONS
+{
+
+}
+
+//Options namespace containing options that can be changed in the json file
+namespace OPTIONS
+{
+    bool DEBUG    = 0;
+}
+
 
 //Printcolor namespace. Already contains default values.
 namespace PCL

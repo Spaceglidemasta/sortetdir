@@ -1,4 +1,8 @@
 {
+    "OPTIONS": {
+        "DEBUG": 0
+    },
+
     "PCL": {
         "RED": "\u001b[91m",
         "BLUE": "\u001b[94m",

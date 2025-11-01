@@ -7,6 +7,8 @@
     Github - @spaceglidemasta
 */
 
+//TODO info cmd with "Created", "Contains [Files], [Dirs]", usw
+
 
 #include <algorithm>
 #include <unordered_map>
@@ -18,6 +20,12 @@
 
 namespace fs = std::filesystem;
 
+//Command struct with .name and .args
+struct Command {
+    std::string name;
+    std::vector<std::string> args;
+};
+
 //returns the cmd-prompt string, using the UI and PCL namespace
 std::string get_cmd_prompt(Contentdict cdict){
     
@@ -27,11 +35,6 @@ std::string get_cmd_prompt(Contentdict cdict){
     return oss.str();
 }
 
-//Command struct with .name and .args
-struct Command {
-    std::string name;
-    std::vector<std::string> args;
-};
 
 //Tests if the given directory is hidden. Uses a Libary from 1985 for this.
 bool is_hidden(const std::filesystem::directory_entry& entry) {
@@ -50,6 +53,103 @@ bool is_hidden(const std::filesystem::directory_entry& entry) {
 
     #endif
     
+}
+
+
+//sets the time attributes of the cdict via reference
+bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
+
+    #ifdef _WIN32
+
+        std::string entry_name = entry.path().string();
+
+        FILETIME ft_creation_time;
+
+        HANDLE entryhandle;
+
+        if(cdict.type == UI::DIR_TYPE_NAME){
+            entryhandle = CreateFileA(
+                                entry_name.c_str(),
+                                0,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                NULL,
+                                OPEN_EXISTING,
+                                FILE_FLAG_BACKUP_SEMANTICS,
+                                NULL
+                            );
+        }
+        else if(cdict.type == UI::FILE_TYPE_NAME){
+            entryhandle = CreateFileA(
+                                entry_name.c_str(),
+                                GENERIC_READ,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                NULL,
+                                OPEN_EXISTING,
+                                FILE_ATTRIBUTE_NORMAL,
+                                NULL
+                            );
+        }
+        else{
+            if(OPTIONS::DEBUG) std::cout << "File " << entry_name << " cannot be accessed because its type is N/A\n";
+            return false;
+        }
+        
+        
+
+        if(entryhandle == INVALID_HANDLE_VALUE) {
+            if(OPTIONS::DEBUG) std::cout << "CreateFile failed: " << entry_name << std::endl;
+            return false;
+        }
+        
+        //return false if the GetFileTime process failed.
+        if(!GetFileTime(entryhandle, &ft_creation_time, NULL, NULL)){
+            if(OPTIONS::DEBUG) std::cout << warning_str("GetFileTime failed: ") << entry_name << std::endl;
+            CloseHandle(entryhandle);
+            return false;
+        }
+        
+        ULARGE_INTEGER ull;
+        ull.LowPart  = ft_creation_time.dwLowDateTime;
+        ull.HighPart = ft_creation_time.dwHighDateTime;
+
+        // Windows to Unix epoch offset (in 100-ns ticks)
+        static constexpr ULONGLONG EPOCH_DIFF = 116444736000000000ULL;
+
+        // Convert windows ticks to unix ns
+        ULONGLONG unixTime100ns = ull.QuadPart - EPOCH_DIFF;
+
+        auto timepoint = std::chrono::system_clock::time_point(
+            std::chrono::duration_cast<std::chrono::system_clock::duration>(
+                std::chrono::nanoseconds(unixTime100ns * 100)
+            )
+        );
+
+        cdict.creation_date = timepoint;
+        CloseHandle(entryhandle);
+
+    #elif __APPLE__
+
+        struct stat st{};
+        if (stat(entry_name.c_str(), &st) != 0) {
+            if(OPTIONS::DEBUG) std::cout << "stat failed: " << entry_name << std::endl;
+            return false;
+        }
+
+        // st_birthtimespec = struct timespec { tv_sec, tv_nsec }
+        auto timepoint = std::chrono::system_clock::time_point{
+            std::chrono::seconds(st.st_birthtimespec.tv_sec) +
+            std::chrono::nanoseconds(st.st_birthtimespec.tv_nsec)
+        };
+        
+        cdict.creation_date = timepoint;
+
+    #else //linux
+
+        //im not gonna mess with all these FS, yall really need to implement this globally.
+
+    #endif
+
+    return true;
 }
 
 
@@ -89,6 +189,13 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
                 //calculate the size (the important part here)
                 currentdict.value += nextdict.value;
 
+                //increment the dirs & files contained;
+                if(nextdict.type == UI::DIR_TYPE_NAME){
+                    currentdict.dirs_contained += nextdict.dirs_contained + 1;
+                    currentdict.files_contained += nextdict.files_contained;
+                }
+                else currentdict.files_contained++;
+
                 currentdict.subdir.push_back(std::move(nextdict));
             }
         }
@@ -109,6 +216,8 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
     currentdict.is_invisible = is_hidden(entry);
     //is always done, doesnt care about entry type
     currentdict.path = entry.path().string();
+
+    cdict_set_filetime(currentdict, entry);
 
     return currentdict;
 }
@@ -145,14 +254,20 @@ int main(int argc, char const *argv[]){
         }
 
         std::cout   << PCL::BOLD << "Commands:\n" << PCL::END 
-                    << "cd      -> Change Directory to arg1.\n"
+                    << "cd      -> Change Directory to target.\n"
+                    << "           default: cd's into the home directory.\n"
+                    << "           arg1: specifies the target."
+                    << "           \"cd ..\": cd's one directory up.\n"
                     << "help    -> prints this?\n"
                     << "q       -> "<< bold_str("q") << "uits the programm.\n"
                     << "table   -> prints the standart sorted table\n"
                     << "tree    -> prints a file tree of the current dir\n"
                     << "what    -> uses the (in)famous \"what\" program on arg1\n"
                     << "cls     -> " << bold_str("cl") << "ears the " << bold_str("s") << "creen\n"
-                    << "pwd     -> "<< bold_str("p") << "rints " << bold_str("w") << "orking " << bold_str("d") << "irectory"
+                    << "pwd     -> "<< bold_str("p") << "rints " << bold_str("w") << "orking " << bold_str("d") << "irectory\n"
+                    << "info    -> Gives information about the creation of the file / dir, and how\n"
+                    << "           many files are in the dir.\n"
+                    << "           arg1: specifies the target, default is the current path."
                     << std::endl;
     };
     
@@ -250,8 +365,9 @@ int main(int argc, char const *argv[]){
         }
         
     };
+    
 
-    //prints a table view of the cdict. Try it. NOW!
+    //prints a table view of the cdict.
     COMMANDS["table"] = [](const Command& cmd, Contentdict*& cdict){
 
         if(!(cmd.args.empty())){
@@ -287,6 +403,45 @@ int main(int argc, char const *argv[]){
     };
         
     std::string cmd_input; //cmd-line input
+
+    COMMANDS["info"] = [](const Command& cmd, Contentdict*& cdict){
+
+        if(cmd.args.empty()){
+
+            std::cout << "\nSize of current directiory: " << size_ext(cdict -> value) << std::endl;
+
+            print_ctime(*cdict);
+
+            std::cout << "Contains: " << cdict -> files_contained << " Files, " << cdict -> dirs_contained << " Folders" << std::endl;
+            
+            return;
+        }
+        //else: args are given
+
+        
+        //Combines all args into one so paths with spaces are fine.
+        //Python's " ".join(cmd.args)
+        std::string fullargs = merge_str(cmd.args);
+
+        for(const auto& entry : cdict -> subdir){
+            if(entry.key == fullargs){
+                std::cout << "\nSize of "<< entry.key << ": " << size_ext(entry.value) << std::endl;
+
+                print_ctime(entry);
+
+                if(entry.type == UI::DIR_TYPE_NAME)
+                    std::cout << "Contains: " << entry.files_contained << " Files, " << entry.dirs_contained << " Folders" << std::endl;
+
+                return;
+            }
+        }
+
+        //else (given directory was not found)
+        std::cout << "Subdir \"" << fullargs << "\" was not found.\n";
+
+        
+        
+    };
 
 
     //command line UI

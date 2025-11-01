@@ -15,18 +15,26 @@
 #include <vector>
 #include <filesystem>
 #include <cmath>
+#include <ctime>
+
+#include <chrono>
+using cock = std::chrono::system_clock;
 
 #ifdef _WIN32
     #include <windows.h>
 #elif __APPLE__
     #include <mach-o/dyld.h>
+    #include <sys/stat.h>
 #else //unix
     #include <unistd.h>
 #endif
 
+//normal part of <windows.h>
 #ifndef MAX_PATH
     #define MAX_PATH 260
 #endif
+
+
 
 namespace fs = std::filesystem;
 #include "constants.hpp"
@@ -54,6 +62,7 @@ constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default
 //     uintmax_t size;     //Third column
 // } Row;
 
+
 struct Contentdict {
     
     std::string key = "";                       //Key / name of the file / directory.
@@ -66,6 +75,9 @@ struct Contentdict {
     std::string path = UI::DEFAULT_TYPE_NAME;   //String of the Path; for printing only; does not effect code-logic. "N/A" is default.
     uint16_t symlinks_skipped = 0;              //Counts how many Symlinks have been skipped / are contained because of redundance.
     Contentdict* home_dir = nullptr;          //the home directory / the dir the program starts in. Is passed onto every subdir.
+    uintmax_t files_contained = 0;            //number of files contained
+    uintmax_t dirs_contained = 0;              //number of dirs contained
+    std::optional<cock::time_point> creation_date; //creation date of the dir / file in SYSEMTIME. Use print_ctime() to print to the stdout
 
 };
 
@@ -111,6 +123,17 @@ class Progress_bar {
     }
 };
 
+bool print_ctime(const Contentdict& cdict){
+    if(!cdict.creation_date){
+        if(OPTIONS::DEBUG)  std::cout << "Cdict has no creation_date: " << cdict.key << std::endl;
+        return false;
+    }
+    std::time_t t = cock::to_time_t(cdict.creation_date.value());
+    std::cout << "Creation time of " << cdict.key << ": " << std::ctime(&t);
+
+    return true;
+}
+
 //returns the fs::path of the location of the .exe
 fs::path get_path_of_exe() {
     char buffer[MAX_PATH];
@@ -143,6 +166,7 @@ fs::path get_path_of_exe() {
         
     #endif
 
+
     return exe_path.parent_path();
 }
 
@@ -161,6 +185,11 @@ bool load_json(){
 
     json json_data;
     file >> json_data;
+
+    if(json_data.contains("OPTIONS")) {
+        auto& options = json_data["OPTIONS"];
+        if(options.contains("DEBUG")) OPTIONS::DEBUG = options["DEBUG"];
+    }
 
     if (json_data.contains("PCL")) {
         auto& pcl = json_data["PCL"];
