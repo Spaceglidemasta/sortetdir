@@ -43,7 +43,6 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 #include <fstream>
 
-//TODO: Printing update -
 
 constexpr uint16_t MAX_NAME_LENGTH  = 30;
 constexpr uint16_t MAX_TYPE_LENGTH  = 8;
@@ -54,7 +53,7 @@ constexpr uint16_t GB_BORDER_YELLOW_COLOR =  2;     // (default: 2) the border f
 constexpr uint16_t TREE_DEFAULT_MAX_DEPTH =  12;    // (default: 12) default max depth of the tree-view.
 constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default depth to start printing tree-views. No, -1 is not an error. This still worked when this was a uint16_t btw
 
-//A fragment of when there was not dict for saving the Directory calculations,
+//A fragment of when there was no cdict for saving the Directory calculations,
 //and there was a Row obj. needed to print the table.
 // typedef struct _Row {
 //     std::string name;   //First column
@@ -64,6 +63,8 @@ constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default
 
 
 struct Contentdict {
+
+    fs::directory_entry entry;                  //the assosiated entry to the cdict
     
     std::string key = "";                       //Key / name of the file / directory.
     std::string type = UI::DEFAULT_TYPE_NAME;   //This is for printing only and does not effect code-logic. "DIR", "FILE" or default: "N/A"

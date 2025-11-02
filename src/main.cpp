@@ -7,7 +7,7 @@
     Github - @spaceglidemasta
 */
 
-//TODO info cmd with "Created", "Contains [Files], [Dirs]", usw
+//TODO structure code & FIX INSTALLATION PROGRESS
 
 
 #include <algorithm>
@@ -217,7 +217,7 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
     //is always done, doesnt care about entry type
     currentdict.path = entry.path().string();
 
-    cdict_set_filetime(currentdict, entry);
+    currentdict.entry = entry;
 
     return currentdict;
 }
@@ -256,18 +256,18 @@ int main(int argc, char const *argv[]){
         std::cout   << PCL::BOLD << "Commands:\n" << PCL::END 
                     << "cd      -> Change Directory to target.\n"
                     << "           default: cd's into the home directory.\n"
-                    << "           arg1: specifies the target."
+                    << "           arg1: specifies the target.\n"
                     << "           \"cd ..\": cd's one directory up.\n"
                     << "help    -> prints this?\n"
                     << "q       -> "<< bold_str("q") << "uits the programm.\n"
                     << "table   -> prints the standart sorted table\n"
                     << "tree    -> prints a file tree of the current dir\n"
-                    << "what    -> uses the (in)famous \"what\" program on arg1\n"
+                    //<< "what    -> uses the (in)famous \"what\" program on arg1\n"
                     << "cls     -> " << bold_str("cl") << "ears the " << bold_str("s") << "creen\n"
                     << "pwd     -> "<< bold_str("p") << "rints " << bold_str("w") << "orking " << bold_str("d") << "irectory\n"
                     << "info    -> Gives information about the creation of the file / dir, and how\n"
                     << "           many files are in the dir.\n"
-                    << "           arg1: specifies the target, default is the current path."
+                    << "           arg1: specifies the target, default is the current path.\n"
                     << std::endl;
     };
     
@@ -380,15 +380,15 @@ int main(int argc, char const *argv[]){
     //Clears the screen. Windows's "cls"
     COMMANDS["cls"] = [](const Command& cmd, Contentdict*& cdict){
 
-        if(!(cmd.args.empty())){
-            std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
-        }
-
         #ifdef _WIN32
             std::system("cls");
         #else // linux & apple
             std::system("clear");
         #endif
+
+        if(!(cmd.args.empty())){
+            std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
+        }
         
     };
 
@@ -408,6 +408,8 @@ int main(int argc, char const *argv[]){
 
         if(cmd.args.empty()){
 
+            cdict_set_filetime(*cdict, cdict -> entry);
+
             std::cout << "\nSize of current directiory: " << size_ext(cdict -> value) << std::endl;
 
             print_ctime(*cdict);
@@ -423,10 +425,11 @@ int main(int argc, char const *argv[]){
         //Python's " ".join(cmd.args)
         std::string fullargs = merge_str(cmd.args);
 
-        for(const auto& entry : cdict -> subdir){
+        for(auto& entry : cdict -> subdir){
             if(entry.key == fullargs){
                 std::cout << "\nSize of "<< entry.key << ": " << size_ext(entry.value) << std::endl;
 
+                cdict_set_filetime(entry, entry.entry);
                 print_ctime(entry);
 
                 if(entry.type == UI::DIR_TYPE_NAME)

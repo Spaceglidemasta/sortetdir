@@ -56,36 +56,50 @@ sortetdir.exe
 ```
 Example output:
 ```bash
-Name                          Type            Size
---------------------------------------------------
-main.exe                      FILE         3.06 MB
-include                       DIR        963.14 KB
-.git                          DIR        806.81 KB
-src                           DIR         22.75 KB
-.vscode                       DIR          2.31 KB
-README.md                     FILE         1.03 KB
-Makefile                      FILE            91 B
-.gitignore                    FILE            21 B
-config.json                   FILE            10 B
+[|||||||||||||||||||||||||||||||||||||||||||||||||||]
 
-Size of current directiory: 4.82 MB
-> // <- Command Line 
+Name                          Type            Size
+__________________________________________________
+sortetdir.exe                 FILE         3.15 MB
+.git                          DIR          1.60 MB
+sortetdir                     FILE         1.30 MB
+include                       DIR        963.14 KB
+src                           DIR         36.20 KB
+README.md                     FILE         6.25 KB
+.vscode                       DIR          2.31 KB
+config.json                   FILE         1.27 KB
+Makefile                      FILE           187 B
+.gitignore                    FILE            66 B
+updates.txt                   FILE             3 B
+
+Size of current directiory: 7.04 MB
+(sortetdircpp)$>
 ```
+This will print a table of the content of the current directory, aswell as a loading bar indicating how long this will take.
+
+This will also start the command interface you can see at the bottom.
+
 Then, use the _help_ command to see which other commands this program has to offer!
 ```bash
-(sortetdir)$> help
+(sortetdircpp)$> help
 Commands:
-cd      -> Change Directory to arg1.
-help    -> prints this.
+cd      -> Change Directory to target.
+           default: cd's into the home directory.
+           arg1: specifies the target.           
+           "cd ..": cd's one directory up.
+help    -> prints this?
 q       -> quits the programm.
 table   -> prints the standart sorted table
 tree    -> prints a file tree of the current dir
-what    -> <to be implemented...>
 cls     -> clears the screen
 pwd     -> prints working directory
+info    -> Gives information about the creation of the file / dir, and how
+           many files are in the dir.
+           arg1: specifies the target, default is the current path.
 
 (sortetdircpp)$> cd include
 (sortetdircpp\include)$> cd nlohmann
+(sortetdircpp\include\nlohmann)$> tree 3
 ``` 
 Then we call "tree 3" to print a tree of the current directory,
 while keeping a max-depth of 3. You can see this at "call_std",
@@ -150,32 +164,18 @@ nlohmann: 963.14 KB
 │      │      ├> hedley_undef.hpp: 5.53 KB
 Size of current directiory: 963.14 KB
 ```
-```bash
-(sortetdircpp\include\nlohmann)$> cd detail
-(sortetdircpp\include\nlohmann\detail)$> table
-```
-```bash
-Name                          Type            Size
-__________________________________________________
-input                         DIR        234.99 KB
-output                        DIR        117.07 KB
-conversions                   DIR         78.30 KB
-macro_scope.hpp               FILE        51.51 KB
-meta                          DIR         47.41 KB
-iterators                     DIR         43.18 KB
-json_pointer.hpp              FILE        37.33 KB
-exceptions.hpp                FILE        10.62 KB
-string_concat.hpp             FILE         5.96 KB
-value_t.hpp                   FILE         4.34 KB
-abi_macros.hpp                FILE         4.13 KB
-hash.hpp                      FILE         4.05 KB
-string_escape.hpp             FILE         2.20 KB
-json_ref.hpp                  FILE         1.85 KB
-macro_unscope.hpp             FILE         1.32 KB
-json_custom_base_class.hpp    FILE         1.19 KB
-string_utils.hpp              FILE           877 B
+The command "detail" can then be used to find out usefull information about a desired file / directory.
 
-Size of current directiory: 646.30 KB
-(sortetdircpp\include\nlohmann\detail)$>
+_Please note that the "Creationtime" function is not yet available for linux, as all the Filesystems need to agree on one f*cking standard._
+```bash
+(sortetdircpp\include\nlohmann)$> info detail
+
+Size of detail: 646.30 KB
+Creation time of detail: Wed Oct  8 11:26:43 2025
+Contains: 39 Files, 6 Folders
 ```
 Almost every string of this is customizable in the config.json file.
+
+
+## Cross platform usage
+This program was compiled and fully tested on Windows 10 and Linux Ubuntu. It has code for MacOS, but was never tested there and will probably not compile. Thank you for your understanding.
