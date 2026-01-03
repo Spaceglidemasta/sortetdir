@@ -166,7 +166,7 @@ Size of current directiory: 963.14 KB
 ```
 The command "detail" can then be used to find out usefull information about a desired file / directory.
 
-_Please note that the "Creationtime" function is not yet available for linux, as all the Filesystems need to agree on one f*cking standard._
+_Please note that the "Creationtime" function is not yet available for linux._
 ```bash
 (sortetdircpp\include\nlohmann)$> info detail
 
