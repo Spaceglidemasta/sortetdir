@@ -22,11 +22,13 @@ vcpkg install nlohmann-json
 You can install this project with
 ```bash
 git clone https://github.com/Spaceglidemasta/sortetdir
-cd sortetdir\include
-git clone https://github.com/nlohmann/json.git include/json
 ```
 
 and then compile it using the C++ compiler of your choice.
+
+Make sure to have nlohmann-json included, e.g. in
+
+           ./include/nlohmann/json.hpp
 
 I also recommend adding the directory to PATH and changing the .exe
 name to something that suits your usage.
