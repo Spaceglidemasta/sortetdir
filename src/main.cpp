@@ -243,35 +243,32 @@ int main(int argc, char const *argv[]){
     mainses.homedir = pcdict;
 
     Progress_bar prgbar(cwd_entry);
-    cdict  = get_size(cwd_entry, pcdict, &prgbar); //* ------> Core of the program
+    cdict  = get_size(cwd_entry, pcdict, &prgbar);
 
 
     if(argc == 1) {
         print_cdict_table(cdict);
         return 0;
     }
-    else {
-        if (argv[1] == "table") {
+    else if (argc  == 2) {
+        if (!strcmp(argv[1], "table")) {
             print_cdict_table(cdict);
             return 0;
         }
-        else if (argv[1] == "tree") {
+        else if (!strcmp(argv[1], "tree")) {
             print_cdict_tree(cdict);
             return 0;
         }
-        else if (argv[1] == "cmd") {
-            print_cdict_table(cdict);
+        else if (!strcmp(argv[1], "cmd")) {
+            Progress_bar::clear();
         }
         else {
             print_cmdargs_help();
+            return 0;
         }
 
         
     }
-
-
-    
-    
 
 
     //json-object-a-like to store {command-name : command-func}

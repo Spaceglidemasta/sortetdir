@@ -96,6 +96,14 @@ class Progress_bar {
 
     public:
     uintmax_t total = 0;
+    
+
+    static void clear() {
+
+        std::cout << "\x1b[2K";
+        std::cout << "\r";
+        
+    }
 
 
     bool update_progressbar() {
@@ -133,6 +141,8 @@ class Progress_bar {
 struct Session {
     Contentdict* homedir = nullptr;
 };
+
+
 
 //example: "Creation time of sortetdircpp: Thu Aug 14 21:51:43 2025" + std::endl
 bool print_ctime(const Contentdict& cdict){
@@ -488,9 +498,7 @@ void print_cdict_table(const Contentdict& cdict){
         return;
     }
 
-    for (size_t i = 0; i > UI::PRGBAR_LEN; i++) std::cout << " ";
-
-    std::cout << "\r";
+    Progress_bar::clear();
 
     //the final table that is printed using setw()
     std::vector<Contentdict> table = cdict.subdir;
