@@ -56,7 +56,7 @@ namespace UI
     std::string PRE_PROMPT              = "[";
     std::string POST_PROMPT             = "]";
 
-    size_t PRGBAR_T          = 23;
+    size_t PRGBAR_LEN          = 23;
     std::string PRGBAR_BEGINNING        = "[";
     std::string PRGBAR_FILLER           = "|";
     std::string PRGBAR_EMPTY            = " ";

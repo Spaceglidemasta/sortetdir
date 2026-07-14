@@ -27,10 +27,10 @@ struct Command {
 };
 
 //returns the cmd-prompt string, using the UI and PCL namespace
-std::string get_cmd_prompt(Contentdict cdict){
+std::string get_cmd_prompt(const Session& ses, const Contentdict& cdict){
     
     std::ostringstream oss;
-    oss << PCL::BLUE << UI::PRE_PROMPT << PCL::CYAN << short_path(cdict) << PCL::BLUE << UI::POST_PROMPT << PCL::END << UI::COMMAND_LINE_LINE;
+    oss << PCL::BLUE << UI::PRE_PROMPT << PCL::CYAN << short_path(ses, cdict) << PCL::BLUE << UI::POST_PROMPT << PCL::END << UI::COMMAND_LINE_LINE;
 
     return oss.str();
 }
@@ -52,16 +52,13 @@ bool is_hidden(const std::filesystem::directory_entry& entry) {
         return !filename.empty() && filename[0] == '.';
 
     #endif
-    
 }
 
 
 //sets the time attributes of the cdict via reference
-bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
+bool cdict_set_filetime(Contentdict& cdict, std::string pathname){
 
     #ifdef _WIN32
-
-        std::string entry_name = entry.path().string();
 
         FILETIME ft_creation_time;
 
@@ -69,7 +66,7 @@ bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
 
         if(cdict.type == UI::DIR_TYPE_NAME){
             entryhandle = CreateFileA(
-                                entry_name.c_str(),
+                                pathname.c_str(),
                                 0,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                                 NULL,
@@ -80,7 +77,7 @@ bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
         }
         else if(cdict.type == UI::FILE_TYPE_NAME){
             entryhandle = CreateFileA(
-                                entry_name.c_str(),
+                                pathname.c_str(),
                                 GENERIC_READ,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                                 NULL,
@@ -90,20 +87,20 @@ bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
                             );
         }
         else{
-            if(OPTIONS::DEBUG) std::cout << "File " << entry_name << " cannot be accessed because its type is N/A\n";
+            if(OPTIONS::DEBUG) std::cout << "File " << pathname << " cannot be accessed because its type is N/A\n";
             return false;
         }
         
         
 
         if(entryhandle == INVALID_HANDLE_VALUE) {
-            if(OPTIONS::DEBUG) std::cout << "CreateFile failed: " << entry_name << std::endl;
+            if(OPTIONS::DEBUG) std::cout << "CreateFile failed: " << pathname << std::endl;
             return false;
         }
         
         //return false if the GetFileTime process failed.
         if(!GetFileTime(entryhandle, &ft_creation_time, NULL, NULL)){
-            if(OPTIONS::DEBUG) std::cout << warning_str("GetFileTime failed: ") << entry_name << std::endl;
+            if(OPTIONS::DEBUG) std::cout << warning_str("GetFileTime failed: ") << pathname << std::endl;
             CloseHandle(entryhandle);
             return false;
         }
@@ -113,7 +110,7 @@ bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
         ull.HighPart = ft_creation_time.dwHighDateTime;
 
         // Windows to Unix epoch offset (in 100-ns ticks)
-        static constexpr ULONGLONG EPOCH_DIFF = 116444736000000000ULL;
+        static constexpr unsigned long long EPOCH_DIFF = 116444736000000000ULL;
 
         // Convert windows ticks to unix ns
         ULONGLONG unixTime100ns = ull.QuadPart - EPOCH_DIFF;
@@ -130,8 +127,8 @@ bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
     #elif __APPLE__
 
         struct stat st{};
-        if (stat(entry_name.c_str(), &st) != 0) {
-            if(OPTIONS::DEBUG) std::cout << "stat failed: " << entry_name << std::endl;
+        if (stat(pathname.c_str(), &st) != 0) {
+            if(OPTIONS::DEBUG) std::cout << "stat failed: " << pathname << std::endl;
             return false;
         }
 
@@ -155,7 +152,12 @@ bool cdict_set_filetime(Contentdict& cdict, const fs::directory_entry& entry){
 
 
 
-Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = nullptr, Progress_bar* pprgbar = nullptr, uint16_t depth = 0) {
+Contentdict get_size(
+    const fs::directory_entry& entry,
+    Contentdict* phomedir = nullptr,
+    Progress_bar* pprgbar = nullptr,
+    uint16_t depth = 0
+) {
 
     Contentdict currentdict;
     depth++;
@@ -175,16 +177,13 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
 
             currentdict.type = UI::DIR_TYPE_NAME;
             
-            for (const auto& current_entry : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied)) {
+            for (const fs::directory_entry& current_entry : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied)) {
 
                 //start the next recursion
                 Contentdict nextdict = get_size(current_entry, phomedir, pprgbar, depth);
 
                 //only load pprgbar in depth 1. Can be changed in the future to handle more accuracy, but needs to be extended to count these to "total"
                 if(depth == 1 && pprgbar) pprgbar -> update_progressbar();
-
-                //home directory for :cmd:"cd"
-                nextdict.home_dir = phomedir;
 
                 //calculate the size (the important part here)
                 currentdict.value += nextdict.value;
@@ -217,13 +216,18 @@ Contentdict get_size(const fs::directory_entry& entry, Contentdict* phomedir = n
     //is always done, doesnt care about entry type
     currentdict.path = entry.path().string();
 
-    currentdict.entry = entry;
-
     return currentdict;
 }
 
 
 int main(int argc, char const *argv[]){
+
+    if(argc > 2){
+        print_cmdargs_help();
+        return 1;
+    }
+
+
 
     load_json();
     /*
@@ -234,20 +238,47 @@ int main(int argc, char const *argv[]){
     
     Contentdict cdict;
     Contentdict* pcdict = &cdict;
+    Session mainses;
+
+    mainses.homedir = pcdict;
 
     Progress_bar prgbar(cwd_entry);
     cdict  = get_size(cwd_entry, pcdict, &prgbar); //* ------> Core of the program
 
-    std::cout << std::endl;
 
-    //Print the final table
-    print_cdict_table(cdict);
+    if(argc == 1) {
+        print_cdict_table(cdict);
+        return 0;
+    }
+    else {
+        if (argv[1] == "table") {
+            print_cdict_table(cdict);
+            return 0;
+        }
+        else if (argv[1] == "tree") {
+            print_cdict_tree(cdict);
+            return 0;
+        }
+        else if (argv[1] == "cmd") {
+            print_cdict_table(cdict);
+        }
+        else {
+            print_cmdargs_help();
+        }
+
+        
+    }
+
+
+    
+    
+
 
     //json-object-a-like to store {command-name : command-func}
-    std::unordered_map<std::string, std::function<void(const Command&, Contentdict*&)>> COMMANDS;
+    std::unordered_map<std::string, std::function<void(const Session&, const Command&, Contentdict*&)>> COMMANDS;
 
     //shows descriptions for every command
-    COMMANDS["help"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["help"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -272,7 +303,7 @@ int main(int argc, char const *argv[]){
     };
     
     //quits the program
-    COMMANDS["q"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["q"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
         std::exit(0);
     };
 
@@ -283,11 +314,11 @@ int main(int argc, char const *argv[]){
         Used to be handled by having the whole contendict system beeing pointer based,
         which turned out to be to complicated for its simple use.
     */
-    COMMANDS["cd"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["cd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         //goes to the home directory, just like in Linux. Because pwd'ing on "cd" is stupid.
         if (cmd.args.empty()) {
-            cdict = cdict->home_dir; //cd logic
+            cdict = ses.homedir; //cd logic
             return;
         }
 
@@ -311,7 +342,7 @@ int main(int argc, char const *argv[]){
 
         //if fullargs is (or is not) a subdir of cdict.
         //normal cd behavior
-        for(auto& entry : cdict -> subdir){
+        for(Contentdict& entry : cdict -> subdir){
             if(entry.key == fullargs){
                 //cd logic
                 entry.parent = cdict;
@@ -326,7 +357,7 @@ int main(int argc, char const *argv[]){
     };
 
     //the "what" program is not yet released  / shit af, so you can safely ignore this and the "what" command
-    COMMANDS["what"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["what"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!WHAT_ENABLED){
             std::cout   << warning_str("Enable \"WHAT_ENABLED\" and install the \"what\" program from repo.\n")
@@ -347,7 +378,7 @@ int main(int argc, char const *argv[]){
     };
 
     //prints a tree view of the cdict. Try it.
-    COMMANDS["tree"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["tree"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if((cmd.args.empty())){
             print_cdict_tree(*cdict, TREE_DEFAULT_MAX_DEPTH, TREE_DEFAULT_DEPTH, true);
@@ -368,7 +399,7 @@ int main(int argc, char const *argv[]){
     
 
     //prints a table view of the cdict.
-    COMMANDS["table"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["table"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -378,7 +409,7 @@ int main(int argc, char const *argv[]){
     };
 
     //Clears the screen. Windows's "cls"
-    COMMANDS["cls"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["cls"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         #ifdef _WIN32
             std::system("cls");
@@ -393,7 +424,7 @@ int main(int argc, char const *argv[]){
     };
 
     //Prints Working Directory. Linux's "pwd". I hate that on w64 "cd" pwd's
-    COMMANDS["pwd"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["pwd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -404,11 +435,11 @@ int main(int argc, char const *argv[]){
         
     std::string cmd_input; //cmd-line input
 
-    COMMANDS["info"] = [](const Command& cmd, Contentdict*& cdict){
+    COMMANDS["info"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(cmd.args.empty()){
 
-            cdict_set_filetime(*cdict, cdict -> entry);
+            cdict_set_filetime(*cdict, cdict -> path);
 
             std::cout << "\nSize of current directiory: " << size_ext(cdict -> value) << std::endl;
 
@@ -425,11 +456,11 @@ int main(int argc, char const *argv[]){
         //Python's " ".join(cmd.args)
         std::string fullargs = merge_str(cmd.args);
 
-        for(auto& entry : cdict -> subdir){
+        for(Contentdict& entry : cdict -> subdir){
             if(entry.key == fullargs){
                 std::cout << "\nSize of "<< entry.key << ": " << size_ext(entry.value) << std::endl;
 
-                cdict_set_filetime(entry, entry.entry);
+                cdict_set_filetime(entry, entry.path);
                 print_ctime(entry);
 
                 if(entry.type == UI::DIR_TYPE_NAME)
@@ -450,7 +481,7 @@ int main(int argc, char const *argv[]){
     //command line UI
     while (true){
 
-        std::cout << get_cmd_prompt(*pcdict);
+        std::cout << get_cmd_prompt(mainses, *pcdict);
         if(!std::getline(std::cin, cmd_input)){
             throw std::invalid_argument("Input could not be gathered.");
         }
@@ -473,8 +504,8 @@ int main(int argc, char const *argv[]){
 
         //idk how the f this object is called. Auto does tho.
         auto it = COMMANDS.find(fcmd.name);
-        if (it != COMMANDS.end()) {
-            it -> second(fcmd, pcdict);
+        if (it != COMMANDS.end()) { 
+            it -> second(mainses, fcmd, pcdict);//<---- command parameters here
         }
         else {
             std::cout << warning_str("Unknown command: ") << fcmd.name << "\n";

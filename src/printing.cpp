@@ -61,31 +61,37 @@ constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default
 //     uintmax_t size;     //Third column
 // } Row;
 
+//TODO remove cock and replace set_ctime (thingy) with print_ctime
 
+
+
+/*
+    Main structure of this program. Store most information needed for the directories.
+*/
 struct Contentdict {
 
-    fs::directory_entry entry;                  //the assosiated entry to the cdict
-    
+    //!Beware of padding!
+
     std::string key = "";                       //Key / name of the file / directory.
     std::string type = UI::DEFAULT_TYPE_NAME;   //This is for printing only and does not effect code-logic. "DIR", "FILE" or default: "N/A"
-    uintmax_t value = 0;                        //Size in Bits. Can be converted to more usefull size-units with size_ext(cdict.value) -> str.
     std::vector<Contentdict> subdir;          //Content of the directory.
-
-    Contentdict* parent = nullptr;            //Pointer to parent dir, default is nullptr.
-    bool is_invisible = false;                  //Some directories are not visible under some selected OS options. On Linux these files start with "."
     std::string path = UI::DEFAULT_TYPE_NAME;   //String of the Path; for printing only; does not effect code-logic. "N/A" is default.
-    uint16_t symlinks_skipped = 0;              //Counts how many Symlinks have been skipped / are contained because of redundance.
-    Contentdict* home_dir = nullptr;          //the home directory / the dir the program starts in. Is passed onto every subdir.
-    uintmax_t files_contained = 0;            //number of files contained
-    uintmax_t dirs_contained = 0;              //number of dirs contained
     std::optional<cock::time_point> creation_date; //creation date of the dir / file in SYSEMTIME. Use print_ctime() to print to the stdout
+
+    uint64_t value = 0;                        //Size in Bits. Can be converted to more usefull size-units with size_ext(cdict.value) -> str.
+    uint64_t files_contained = 0;            //number of files contained
+    uint64_t dirs_contained = 0;              //number of dirs contained
+    Contentdict* parent = nullptr;            //Pointer to parent dir, default is nullptr.
+    
+    bool is_invisible = false;                  //Some directories are not visible under some selected OS options. On Linux these files start with "."
+    uint16_t symlinks_skipped = 0;              //Counts how many Symlinks have been skipped / are contained because of redundance.
 
 };
 
 
 class Progress_bar {
     private:
-    double lambda;
+    double step_size;
     double processed = 0.0;
 
     public:
@@ -93,25 +99,25 @@ class Progress_bar {
 
 
     bool update_progressbar() {
-        if (UI::PRGBAR_T < 2) return true;
+        if (UI::PRGBAR_LEN < 2) return true;
 
-        if(std::floor(processed) == std::floor(processed + lambda)) {
-            processed += lambda;
+        if(std::floor(processed) == std::floor(processed + step_size)) {
+            processed += step_size;
             return false;
         }
 
-        processed += lambda;
+        processed += step_size;
 
         std::cout << "\r" << UI::PRGBAR_BEGINNING;
         for(int i = 0; i <= std::floor(processed); i++){
             std::cout << UI::PRGBAR_FILLER;
         }
-        for(int i = std::floor(processed); i < UI::PRGBAR_T - 1; i++){
+        for(int i = std::floor(processed); i < UI::PRGBAR_LEN - 1; i++){
             std::cout << UI::PRGBAR_EMPTY;
         }
         std::cout << UI::PRGBAR_END;
 
-        //if(std::floor(processed) >= UI::PRGBAR_T) std::cout << std::endl;
+        //if(std::floor(processed) >= UI::PRGBAR_LEN) std::cout << std::endl;
 
         return false;
     }
@@ -120,10 +126,15 @@ class Progress_bar {
         for (const auto& _ : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied))
             total++;
 
-        lambda = double(UI::PRGBAR_T) / double(total);
+        step_size = double(UI::PRGBAR_LEN) / double(total);
     }
 };
 
+struct Session {
+    Contentdict* homedir = nullptr;
+};
+
+//example: "Creation time of sortetdircpp: Thu Aug 14 21:51:43 2025" + std::endl
 bool print_ctime(const Contentdict& cdict){
     if(!cdict.creation_date){
         if(OPTIONS::DEBUG)  std::cout << "Cdict has no creation_date: " << cdict.key << std::endl;
@@ -178,7 +189,18 @@ fs::path get_path_of_exe() {
 */
 bool load_json(){
 
-    std::ifstream file(get_path_of_exe() / "config.json");
+    #ifdef _WIN32
+
+        const char* appd = std::getenv("APPDATA");
+
+    #else  //linux & macos
+
+        const char* appd = std::getenv("HOME");
+
+    #endif
+
+    std::ifstream file(std::string(appd != nullptr ? appd : ".") + "\\sortetdir\\config.json");
+
     if(!file.is_open()){
         std::cerr << "ifstream: config.json could not be loaded.: " << get_path_of_exe() / "config.json" << std::endl;
         return 1;
@@ -217,7 +239,7 @@ bool load_json(){
         if (ui.contains("KB_EXT"))                  UI::KB_EXT                  = ui["KB_EXT"];
         if (ui.contains("B_EXT"))                   UI::B_EXT                   = ui["B_EXT"];
         if (ui.contains("COMMAND_LINE_LINE"))       UI::COMMAND_LINE_LINE       = ui["COMMAND_LINE_LINE"];
-        if (ui.contains("PRGBAR_T"))                UI::PRGBAR_T                = ui["PRGBAR_T"];
+        if (ui.contains("PRGBAR_LEN"))                UI::PRGBAR_LEN                = ui["PRGBAR_LEN"];
         if (ui.contains("PRGBAR_BEGINNING"))        UI::PRGBAR_BEGINNING        = ui["PRGBAR_BEGINNING"];
         if (ui.contains("PRGBAR_FILLER"))           UI::PRGBAR_FILLER           = ui["PRGBAR_FILLER"];
         if (ui.contains("PRGBAR_EMPTY"))            UI::PRGBAR_EMPTY            = ui["PRGBAR_EMPTY"];
@@ -252,21 +274,23 @@ bool load_json(){
     cdict.home_dir = "C:Users\Nutzer\Documents"
 
     returns -> "Documents\programming scripts\C++"
-
 */
-std::string short_path(const Contentdict& cdict) {
-    if (cdict.home_dir == nullptr) {
+std::string short_path(const Session& ses, const Contentdict& cdict) {
+    //if we are at the start / home directory
+    if (ses.homedir == &cdict) {
         return cdict.key;
     }
 
     std::string spath = cdict.path;
-    size_t len = cdict.home_dir -> path.length();
+    size_t len = ses.homedir -> path.length();
 
+    //C++ string manip is a pain in the a$$
     if(len != std::string::npos){
-        spath.erase(0, len + 1);
+        spath.erase(0, len + 1); //@Python spath = spath[len + 1:]
     }
 
-    return cdict.home_dir -> key + "\\" + spath;
+
+    return ses.homedir -> key + "\\" + spath;
 }
 
 //truncates the string to a max size of param:width, and adds a "..."
@@ -279,8 +303,27 @@ std::string truncate(const std::string& s, std::size_t width) {
 //magic regex function :)
 //fun-fact: The regex u learn in uni does not help you with this!
 uint16_t ansii_code_length(std::string str){
-    static const std::regex clrrgx("\033\\[[0-9;]*m|.");
-    return std::regex_replace(str, clrrgx, "$1").length();
+    static const std::regex clrrgx("\033\\[[0-9;]*m");
+    return std::regex_replace(str, clrrgx, "").length();
+}
+
+uint16_t ansii_code_len_by_val(uintmax_t size){
+
+    std::string big_warning = PCL::RED;
+    std::string small_warning = PCL::YELLOW;
+
+    if(size >= GB){
+        //warns the user of big file sizes
+        if(size / GB > GB_BORDER_RED_COLOR) {
+            return big_warning.length();
+        }
+        else if(size / GB > GB_BORDER_YELLOW_COLOR) {
+            return small_warning.length();
+        }
+    }
+
+    return 0;
+
 }
 
 //makes sense out of 232328 bits. 232328 -> "226.88 KB"
@@ -290,11 +333,20 @@ std::string size_ext(uintmax_t size){
     std::ostringstream oss;
     oss << std::fixed << std::setprecision(2); //2 digit decimal-point precision
 
+    std::string big_warning = PCL::RED;
+    std::string small_warning = PCL::YELLOW;
+
     if(size >= GB){
         //warns the user of big file sizes
-        if(size / GB > GB_BORDER_RED_COLOR) oss << PCL::RED << (size / GB) << PCL::END << UI::GB_EXT;
-        else if(size / GB > GB_BORDER_YELLOW_COLOR) oss << PCL::YELLOW << (size / GB) << PCL::END << UI::GB_EXT;
-        else oss << (size / GB) << UI::GB_EXT;
+        if(size / GB > GB_BORDER_RED_COLOR) {
+            oss << big_warning << (size / GB) << PCL::END << UI::GB_EXT;
+        }
+        else if(size / GB > GB_BORDER_YELLOW_COLOR) {
+            oss << small_warning << (size / GB) << PCL::END << UI::GB_EXT;
+        }
+        else {
+            oss << (size / GB) << UI::GB_EXT;
+        }
     }
     else if(size >= MB){
         oss << (size / MB) << UI::MB_EXT;
@@ -349,7 +401,7 @@ std::string bold_str(const std::string& str){
 std::string merge_str(const std::vector<std::string>& vstr){
     std::string retstr = "";
     bool first = true;
-    for(const auto& str : vstr){
+    for(const std::string& str : vstr){
         if(first){
             retstr += str;
             first = false;
@@ -402,7 +454,7 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
             return;
         }
         
-        for(const auto& subdict : cdict.subdir){
+        for(const Contentdict& subdict : cdict.subdir){
             print_cdict_tree(subdict, max_depth, depth + 1);
         }
     }
@@ -414,7 +466,12 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
 
     if(first) std::cout << "\nSize of current directiory: " << size_ext(cdict.value) << std::endl;
 
-};
+}
+
+void print_cmdargs_help() {
+    std::cout << "Wrong usage! Correct usage: ls <flag>" << std::endl;
+    std::cout << "Flags: tree, table (standard), cmd";
+}
 
 
 /**
@@ -431,13 +488,21 @@ void print_cdict_table(const Contentdict& cdict){
         return;
     }
 
-    std::cout << std::endl;
+    for (size_t i = 0; i > UI::PRGBAR_LEN; i++) std::cout << " ";
+
+    std::cout << "\r";
 
     //the final table that is printed using setw()
     std::vector<Contentdict> table = cdict.subdir;
 
     //stable sort by cdict.value
-    std::stable_sort(table.begin(), table.end(),[](const Contentdict& a, const Contentdict& b) {return a.value > b.value;});
+    std::stable_sort(
+        table.begin(),
+        table.end(),
+        [](const Contentdict& a, const Contentdict& b) {
+            return a.value > b.value;
+        }
+    );
 
     //Header
     std::cout << std::left
@@ -449,15 +514,18 @@ void print_cdict_table(const Contentdict& cdict){
     //Less memory usage :)
     std::string sizestr;
     //Table content
-    for (const auto& cdict_row : table) {
+    for (const Contentdict& cdict_row : table) {
 
         sizestr = size_ext(cdict_row.value);
 
-        //I hate setwhite
+        uint16_t visible_len = ansii_code_length(sizestr);
+        uint16_t pad = (visible_len < MAX_SIZE_LENGTH) ? (MAX_SIZE_LENGTH - visible_len) : 0;
+
+        
         std::cout << (cdict_row.is_invisible ? PCL::GRAY : "") << std::left
                   << std::setw(MAX_NAME_LENGTH) << truncate(cdict_row.key, MAX_NAME_LENGTH)
                   << std::setw(MAX_TYPE_LENGTH) << cdict_row.type
-                  << std::right << std::setw(MAX_SIZE_LENGTH - ansii_code_length(sizestr)) << sizestr
+                  << std::string(pad, ' ') << sizestr
                   << PCL::NOFLUSH << PCL::END;             
     }
 
