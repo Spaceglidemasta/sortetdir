@@ -7,58 +7,43 @@ A terminal-based C++ application that shows how much space each directory takes 
 - Helps identify large folders quickly  
 - Lightweight and fast  
 
-## Dependencies
-This project uses the following external libraries:
-- [`nlohmann/json`](https://github.com/nlohmann/json) – for parsing and handling JSON data
 
-Make sure it’s installed or available in your include path before building.
-
-If you’re using **vcpkg**, you can install it via:
-```bash
-vcpkg install nlohmann-json
-```
 
 ## Installation
-You can install this project with
 ```bash
 git clone https://github.com/Spaceglidemasta/sortetdir
 ```
 
-and then compile it using the C++ compiler of your choice.
-
-Make sure to have nlohmann-json included, e.g. in
-
-           ./include/nlohmann/json.hpp
-
-I also recommend adding the directory to PATH and changing the .exe
+I also recommend adding the `bin` directory to PATH and changing the .exe
 name to something that suits your usage.
 
 ## Compilation
 
+#### Linux
 ```bash
 make unix
 ```
-or
+
+#### Windows
 ```bat
 make win
 ```
-if you somehow got hands on a windows makefile.
-
-Alternativly, you can compile it manually via:
-```bash
-g++ src/main.cpp -o sortetdir -std=c++17 -lm -Iinclude
-```
-
 
 
 ## Usage
+### Table
 
 ```bash
 sortetdir.exe
 ```
-Example output:
+or 
+
 ```bash
-[|||||||||||||||||||||||||||||||||||||||||||||||||||]
+sortetdir.exe table
+```
+
+output:
+```bash
 
 Name                          Type            Size
 __________________________________________________
@@ -75,37 +60,13 @@ Makefile                      FILE           187 B
 updates.txt                   FILE             3 B
 
 Size of current directiory: 7.04 MB
-(sortetdircpp)$>
 ```
-This will print a table of the content of the current directory, aswell as a loading bar indicating how long this will take.
 
-This will also start the command interface you can see at the bottom.
+### Treeview
 
-Then, use the _help_ command to see which other commands this program has to offer!
-```bash
-(sortetdircpp)$> help
-Commands:
-cd      -> Change Directory to target.
-           default: cd's into the home directory.
-           arg1: specifies the target.           
-           "cd ..": cd's one directory up.
-help    -> prints this?
-q       -> quits the programm.
-table   -> prints the standart sorted table
-tree    -> prints a file tree of the current dir
-cls     -> clears the screen
-pwd     -> prints working directory
-info    -> Gives information about the creation of the file / dir, and how
-           many files are in the dir.
-           arg1: specifies the target, default is the current path.
+    sortetdir.exe tree
 
-(sortetdircpp)$> cd include
-(sortetdircpp\include)$> cd nlohmann
-(sortetdircpp\include\nlohmann)$> tree 3
-``` 
-Then we call "tree 3" to print a tree of the current directory,
-while keeping a max-depth of 3. You can see this at "call_std",
-which would normally contain a lot of annoying files.
+output:
 ```bash
 
 (sortetdircpp\include\nlohmann)$> tree 3
@@ -168,7 +129,25 @@ Size of current directiory: 963.14 KB
 ```
 The command "detail" can then be used to find out usefull information about a desired file / directory.
 
-_Please note that the "Creationtime" function is not yet available for linux._
+
+### CLI
+
+    sortetdir.exe cmd
+
+This will open a switch to an active CLI version, where you can use these commands:
+
+- tree \<depth>
+- table
+- cd \<folder>
+- info \<file | folder>
+- help
+- q (quits the program)
+- pwd
+- cls
+
+
+#### Example of the "info" command
+
 ```bash
 (sortetdircpp\include\nlohmann)$> info detail
 
@@ -176,8 +155,8 @@ Size of detail: 646.30 KB
 Creation time of detail: Wed Oct  8 11:26:43 2025
 Contains: 39 Files, 6 Folders
 ```
-Almost every string of this is customizable in the config.json file.
+
+_Please note that the "Creationtime" function is not yet available for linux._
 
 
-## Cross platform usage
-This program was compiled and fully tested on Windows 10 and Linux Ubuntu. It has code for MacOS, but was never tested there and will probably not compile. Thank you for your understanding.
+__Almost every string of this is customizable in the config.json file.__
