@@ -446,6 +446,8 @@ std::string merge_str(const std::vector<std::string>& vstr){
  */
 void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short int depth = 0, bool first = false){
 
+    // transfere to when loading bar is over
+    if (depth == 0) std::cout << std::endl;
 
     if(cdict.subdir.empty() && first == true){
         std::cout << info_str("This directory is empty.") << std::endl;

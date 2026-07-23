@@ -222,7 +222,7 @@ Contentdict get_size(
 
 int main(int argc, char const *argv[]){
 
-    if(argc > 2){
+    if(argc > 3){
         print_cmdargs_help();
         return 1;
     }
@@ -245,18 +245,37 @@ int main(int argc, char const *argv[]){
     Progress_bar prgbar(cwd_entry);
     cdict  = get_size(cwd_entry, pcdict, &prgbar);
 
-
     if(argc == 1) {
         print_cdict_table(cdict);
         return 0;
     }
-    else if (argc  == 2) {
+    else if (argc  >= 2) {
         if (!strcmp(argv[1], "table")) {
             print_cdict_table(cdict);
             return 0;
         }
         else if (!strcmp(argv[1], "tree")) {
-            print_cdict_tree(cdict);
+
+            int maxdepth = 12;
+
+            if (argc >= 3) {
+
+                // If argv[2] is not an integer, atoi will return 0
+                maxdepth = atoi(argv[2]);
+
+                //check for invalid argv[2].
+                if (maxdepth <= 0) {
+                    
+                    std::cerr << "WARNING: tree-depth \"" << argv[2] << "\" is not an integer and will be ignored.\n"; 
+
+                    maxdepth = 12;
+
+                }
+
+            }
+
+             print_cdict_tree(cdict, maxdepth);
+
             return 0;
         }
         else if (!strcmp(argv[1], "cmd")) {
