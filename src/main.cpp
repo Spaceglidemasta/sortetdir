@@ -290,7 +290,6 @@ int main(int argc, char const *argv[]){
                     << "q       -> "<< bold_str("q") << "uits the programm.\n"
                     << "table   -> prints the standart sorted table\n"
                     << "tree    -> prints a file tree of the current dir\n"
-                    //<< "what    -> uses the (in)famous \"what\" program on arg1\n"
                     << "cls     -> " << bold_str("cl") << "ears the " << bold_str("s") << "creen\n"
                     << "pwd     -> "<< bold_str("p") << "rints " << bold_str("w") << "orking " << bold_str("d") << "irectory\n"
                     << "info    -> Gives information about the creation of the file / dir, and how\n"
@@ -313,14 +312,12 @@ int main(int argc, char const *argv[]){
     */
     COMMANDS["cd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
-        //goes to the home directory, just like in Linux. Because pwd'ing on "cd" is stupid.
+        //goes to the home directory, just like in Linux.
         if (cmd.args.empty()) {
             cdict = ses.homedir; //cd logic
             return;
         }
 
-        //Combines all args into one so paths with spaces are fine.
-        //Python's " ".join(cmd.args)
         std::string fullargs = merge_str(cmd.args);
 
         //goes back 1 directory
@@ -449,8 +446,6 @@ int main(int argc, char const *argv[]){
         //else: args are given
 
         
-        //Combines all args into one so paths with spaces are fine.
-        //Python's " ".join(cmd.args)
         std::string fullargs = merge_str(cmd.args);
 
         for(Contentdict& entry : cdict -> subdir){
@@ -499,7 +494,7 @@ int main(int argc, char const *argv[]){
         fcmd.name = cmd_input_split[0];
         fcmd.args = rest;
 
-        //idk how the f this object is called. Auto does tho.
+
         auto it = COMMANDS.find(fcmd.name);
         if (it != COMMANDS.end()) { 
             it -> second(mainses, fcmd, pcdict);//<---- command parameters here

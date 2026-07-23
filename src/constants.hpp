@@ -56,7 +56,7 @@ namespace UI
     std::string PRE_PROMPT              = "[";
     std::string POST_PROMPT             = "]";
 
-    size_t PRGBAR_LEN          = 23;
+    size_t      PRGBAR_LEN              = 23;
     std::string PRGBAR_BEGINNING        = "[";
     std::string PRGBAR_FILLER           = "|";
     std::string PRGBAR_EMPTY            = " ";
@@ -75,6 +75,8 @@ namespace UI
     std::string DOTDOTDOT_STR           = " ...";
     std::string KEY_AND_VALUE_SEPSTR    = ": ";
 
-    std::string TABLE_LINE_CHAR          = "-";
+    std::string TABLE_HEADER_COLOR      = PCL::CYAN;
+    std::string TABLE_LINE_COLOR        = PCL::BLUE;
+    std::string TABLE_LINE_CHAR         = "-";
 
 }

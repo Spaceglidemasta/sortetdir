@@ -193,6 +193,8 @@ fs::path get_path_of_exe() {
 }
 
 
+
+
 /*
     loads all the vars from config.json
     uses nlohmann/json
@@ -227,49 +229,60 @@ bool load_json(){
     if (json_data.contains("PCL")) {
         auto& pcl = json_data["PCL"];
 
-        if (pcl.contains("RED"))                PCL::RED                     = pcl["RED"];
-        if (pcl.contains("YELLOW"))             PCL::YELLOW                  = pcl["YELLOW"];
-        if (pcl.contains("BLUE"))               PCL::BLUE                    = pcl["BLUE"];
-        if (pcl.contains("GRAY"))               PCL::GRAY                    = pcl["GRAY"];
-        if (pcl.contains("CYAN"))               PCL::CYAN                    = pcl["CYAN"];
-        if (pcl.contains("END"))                PCL::END                     = pcl["END"];
-        if (pcl.contains("UNDERLINE"))          PCL::UNDERLINE               = pcl["UNDERLINE"];
-        if (pcl.contains("BOLD"))               PCL::BOLD                    = pcl["BOLD"];
-        if (pcl.contains("ITALIC"))             PCL::ITALIC                  = pcl["ITALIC"];
+        #define JSON_CHECK_N_SET(name) if (pcl.contains(#name)) PCL::name = pcl[#name];
+
+        JSON_CHECK_N_SET(RED)
+        JSON_CHECK_N_SET(YELLOW)
+        JSON_CHECK_N_SET(BLUE)
+        JSON_CHECK_N_SET(GRAY)
+        JSON_CHECK_N_SET(CYAN)
+        JSON_CHECK_N_SET(END)
+        JSON_CHECK_N_SET(UNDERLINE)
+        JSON_CHECK_N_SET(BOLD)
+        JSON_CHECK_N_SET(ITALIC)
+
+        #undef JSON_CHECK_N_SET
     }
 
     if (json_data.contains("UI")) {
         auto& ui = json_data["UI"];
 
-        if (ui.contains("DIR_TYPE_NAME"))           UI::DIR_TYPE_NAME           = ui["DIR_TYPE_NAME"];
-        if (ui.contains("FILE_TYPE_NAME"))          UI::FILE_TYPE_NAME          = ui["FILE_TYPE_NAME"];
-        if (ui.contains("DEFAULT_TYPE_NAME"))       UI::DEFAULT_TYPE_NAME       = ui["DEFAULT_TYPE_NAME"];
-        if (ui.contains("GB_EXT"))                  UI::GB_EXT                  = ui["GB_EXT"];
-        if (ui.contains("MB_EXT"))                  UI::MB_EXT                  = ui["MB_EXT"];
-        if (ui.contains("KB_EXT"))                  UI::KB_EXT                  = ui["KB_EXT"];
-        if (ui.contains("B_EXT"))                   UI::B_EXT                   = ui["B_EXT"];
-        if (ui.contains("COMMAND_LINE_LINE"))       UI::COMMAND_LINE_LINE       = ui["COMMAND_LINE_LINE"];
-        if (ui.contains("PRGBAR_LEN"))                UI::PRGBAR_LEN                = ui["PRGBAR_LEN"];
-        if (ui.contains("PRGBAR_BEGINNING"))        UI::PRGBAR_BEGINNING        = ui["PRGBAR_BEGINNING"];
-        if (ui.contains("PRGBAR_FILLER"))           UI::PRGBAR_FILLER           = ui["PRGBAR_FILLER"];
-        if (ui.contains("PRGBAR_EMPTY"))            UI::PRGBAR_EMPTY            = ui["PRGBAR_EMPTY"];
-        if (ui.contains("PRGBAR_END"))              UI::PRGBAR_END              = ui["PRGBAR_END"];
+        #define JSON_CHECK_N_SET(name) if (ui.contains(#name)) UI::name = ui[#name];
 
-        if (ui.contains("PRE_PROMPT"))              UI::PRE_PROMPT              = ui["PRE_PROMPT"];
-        if (ui.contains("POST_PROMPT"))             UI::POST_PROMPT             = ui["POST_PROMPT"];
-        if (ui.contains("FIRST_ROW_STR"))           UI::FIRST_ROW_STR           = ui["FIRST_ROW_STR"];
-        if (ui.contains("SEC_ROW_STR"))             UI::SEC_ROW_STR             = ui["SEC_ROW_STR"];
-        if (ui.contains("THIRD_ROW_STR"))           UI::THIRD_ROW_STR           = ui["THIRD_ROW_STR"];
-        if (ui.contains("PIPE_DOWN_STR"))           UI::PIPE_DOWN_STR           = ui["PIPE_DOWN_STR"];
-        if (ui.contains("VERTICAL_PIPE_STR"))       UI::VERTICAL_PIPE_STR       = ui["VERTICAL_PIPE_STR"];
-        if (ui.contains("DIR_ARROW_STR"))           UI::DIR_ARROW_STR           = ui["DIR_ARROW_STR"];
-        if (ui.contains("CROSS_PIPE_STR"))          UI::CROSS_PIPE_STR          = ui["CROSS_PIPE_STR"];
-        if (ui.contains("FILE_ARROW_STR"))          UI::FILE_ARROW_STR          = ui["FILE_ARROW_STR"];
-        if (ui.contains("EMPTY_DEPTH_SEPSTR"))      UI::EMPTY_DEPTH_SEPSTR      = ui["EMPTY_DEPTH_SEPSTR"];
-        if (ui.contains("FILLED_DEPTH_SEPSTR"))     UI::FILLED_DEPTH_SEPSTR     = ui["FILLED_DEPTH_SEPSTR"];
-        if (ui.contains("DOTDOTDOT_STR"))           UI::DOTDOTDOT_STR           = ui["DOTDOTDOT_STR"];
-        if (ui.contains("KEY_AND_VALUE_SEPSTR"))    UI::KEY_AND_VALUE_SEPSTR    = ui["KEY_AND_VALUE_SEPSTR"];
-        if(ui.contains("TABLE_LINE_CHAR"))          UI::TABLE_LINE_CHAR         = ui["TABLE_LINE_CHAR"];
+        JSON_CHECK_N_SET(DIR_TYPE_NAME)
+        JSON_CHECK_N_SET(FILE_TYPE_NAME)
+        JSON_CHECK_N_SET(DEFAULT_TYPE_NAME)
+        JSON_CHECK_N_SET(GB_EXT)
+        JSON_CHECK_N_SET(MB_EXT)
+        JSON_CHECK_N_SET(KB_EXT)
+        JSON_CHECK_N_SET(B_EXT)
+        JSON_CHECK_N_SET(COMMAND_LINE_LINE)
+        JSON_CHECK_N_SET(PRGBAR_LEN)
+        JSON_CHECK_N_SET(PRGBAR_BEGINNING)
+        JSON_CHECK_N_SET(PRGBAR_FILLER)
+        JSON_CHECK_N_SET(PRGBAR_EMPTY)
+        JSON_CHECK_N_SET(PRGBAR_END)
+
+        JSON_CHECK_N_SET(PRE_PROMPT)
+        JSON_CHECK_N_SET(POST_PROMPT)
+        JSON_CHECK_N_SET(FIRST_ROW_STR)
+        JSON_CHECK_N_SET(SEC_ROW_STR)
+        JSON_CHECK_N_SET(THIRD_ROW_STR)
+        JSON_CHECK_N_SET(PIPE_DOWN_STR)
+        JSON_CHECK_N_SET(VERTICAL_PIPE_STR)
+        JSON_CHECK_N_SET(DIR_ARROW_STR)
+        JSON_CHECK_N_SET(CROSS_PIPE_STR)
+        JSON_CHECK_N_SET(FILE_ARROW_STR)
+        JSON_CHECK_N_SET(EMPTY_DEPTH_SEPSTR)
+        JSON_CHECK_N_SET(FILLED_DEPTH_SEPSTR)
+        JSON_CHECK_N_SET(DOTDOTDOT_STR)
+        JSON_CHECK_N_SET(KEY_AND_VALUE_SEPSTR)
+
+        JSON_CHECK_N_SET(TABLE_LINE_CHAR)
+        JSON_CHECK_N_SET(TABLE_HEADER_COLOR)
+        JSON_CHECK_N_SET(TABLE_LINE_COLOR)
+
+        #undef JSON_CHECK_N_SET
     }
 
     return 0;
@@ -512,14 +525,39 @@ void print_cdict_table(const Contentdict& cdict){
         }
     );
 
+
+    std::string primcol;
+    std::string seccol; 
+
+    //personal modification of mine. Compile via "make winper / uniper" to use
+    #ifdef _PERSONAL_MODE
+
+        char* primcolenv = std::getenv("primcol");
+        char* seccolenv = std::getenv("seccol");
+
+        if (primcolenv == NULL) primcol = UI::TABLE_HEADER_COLOR;
+        else                    primcol = "\033[" + std::string(primcolenv) + "m";
+             
+        if (seccolenv == NULL) seccol = UI::TABLE_LINE_COLOR;
+        else                   seccol = "\033[" + std::string(seccolenv)  + "m";
+
+    #else
+
+        primcol = UI::TABLE_HEADER_COLOR;
+        seccol = UI::TABLE_LINE_COLOR;
+
+    #endif
+
+
     //Header
-    std::cout << std::left
+    std::cout << std::left << primcol
               << std::setw(MAX_NAME_LENGTH) << UI::FIRST_ROW_STR
               << std::setw(MAX_TYPE_LENGTH) << UI::SEC_ROW_STR
-              << std::right << std::setw(MAX_SIZE_LENGTH) << UI::THIRD_ROW_STR << PCL::NOFLUSH;
+              << std::right << std::setw(MAX_SIZE_LENGTH) << UI::THIRD_ROW_STR << PCL::NOFLUSH << seccol;
     std::cout << std::string(MAX_NAME_LENGTH + MAX_TYPE_LENGTH + MAX_SIZE_LENGTH, (UI::TABLE_LINE_CHAR)[0]) << PCL::NOFLUSH;
+    std::cout << PCL::END;
 
-    //Less memory usage :)
+    
     std::string sizestr;
     //Table content
     for (const Contentdict& cdict_row : table) {
