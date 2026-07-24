@@ -268,13 +268,14 @@ bool load_json(){
         JSON_CHECK_N_SET(FIRST_ROW_STR)
         JSON_CHECK_N_SET(SEC_ROW_STR)
         JSON_CHECK_N_SET(THIRD_ROW_STR)
-        JSON_CHECK_N_SET(PIPE_DOWN_STR)
-        JSON_CHECK_N_SET(VERTICAL_PIPE_STR)
-        JSON_CHECK_N_SET(DIR_ARROW_STR)
-        JSON_CHECK_N_SET(CROSS_PIPE_STR)
-        JSON_CHECK_N_SET(FILE_ARROW_STR)
-        JSON_CHECK_N_SET(EMPTY_DEPTH_SEPSTR)
-        JSON_CHECK_N_SET(FILLED_DEPTH_SEPSTR)
+        
+        JSON_CHECK_N_SET(LTITLESYMBOL)         
+        JSON_CHECK_N_SET(RTITLESYMBOL)         
+        JSON_CHECK_N_SET(NOTLAST_RPIPE)        
+        JSON_CHECK_N_SET(LAST_RPIPE)           
+        JSON_CHECK_N_SET(EMPTY_FILLER)         
+        JSON_CHECK_N_SET(FILLED_FILLER)        
+        JSON_CHECK_N_SET(DOWNPIPE)             
         JSON_CHECK_N_SET(DOTDOTDOT_STR)
         JSON_CHECK_N_SET(KEY_AND_VALUE_SEPSTR)
 
@@ -286,6 +287,41 @@ bool load_json(){
     }
 
     return 0;
+}
+
+std::string get_primcol() {
+
+    //personal modification of mine. Compile via "make winper / uniper" to use
+    #ifdef _PERSONAL_MODE
+
+        char* primcolenv = std::getenv("primcol");
+    
+        if (primcolenv == NULL) return UI::TABLE_HEADER_COLOR;
+        else                    return "\033[" + std::string(primcolenv) + "m";
+             
+    #else
+
+        return UI::TABLE_HEADER_COLOR;
+    
+    #endif
+
+}
+
+std::string get_seccol() {
+    
+    //personal modification of mine. Compile via "make winper / uniper" to use
+    #ifdef _PERSONAL_MODE
+
+        char* seccolenv = std::getenv("seccol");
+             
+        if (seccolenv == NULL) return UI::TABLE_LINE_COLOR;
+        else                   return "\033[" + std::string(seccolenv)  + "m";
+
+    #else
+
+        return UI::TABLE_LINE_COLOR;
+
+    #endif
 }
 
 
@@ -440,75 +476,41 @@ std::string merge_str(const std::vector<std::string>& vstr){
  * Prints the contentdict in a tree-like view
  * 
  * @param cdict The contentdict to print in a tree-like view.
- * @param max_depth Maximum depth to print (default 12).
- * @param depth Current recursion depth (optional, default 0). Can be invoked with -1 to create a more flat tree.
- * @param first True if this is the first call (optional, default false).
+ * @param max_depth Maximum depth to print 
+ * @param depth Current recursion depth 
+ * @param first True if this is the first rekursion call
+ * @param last True if last element of directory
+ * @param indentstr indentation-string used for rekursion
  */
-void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short int depth = 0, bool first = false){
-
-    // transfere to when loading bar is over
-    if (depth == 0) std::cout << std::endl;
-
-    if(cdict.subdir.empty() && first == true){
-        std::cout << info_str("This directory is empty.") << std::endl;
-        return;
-    }
-
-    //is a dir
-    if(cdict.subdir.size()){
-
-        if(first) std::cout << PCL::BOLD << cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::END << PCL::NOFLUSH;
-        else if(depth <= 0){
-            std::cout   << UI::PIPE_DOWN_STR << UI::FILE_ARROW_STR
-                        << cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::NOFLUSH;
-        }
-        else{
-            std::cout   << stringtimes(UI::VERTICAL_PIPE_STR + UI::EMPTY_DEPTH_SEPSTR, depth - 1)
-                        << UI::PIPE_DOWN_STR + UI::FILLED_DEPTH_SEPSTR << UI::DIR_ARROW_STR
-                        << cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::NOFLUSH;
-        }
-
-        /*
-            checking that the max_depth is not surpassed.
-
-            yes, this leaves out recursions, but this doesnt mather, because
-            since Version 2.0 printing and the calc. of the cdict are seperate.
-        */
-        if(depth + 1 == max_depth){
-            std::cout << PCL::GRAY <<stringtimes(UI::VERTICAL_PIPE_STR + UI::EMPTY_DEPTH_SEPSTR, depth + 1) << UI::DOTDOTDOT_STR << PCL::END <<PCL::NOFLUSH;
-            return;
-        }
-        
-        for(const Contentdict& subdict : cdict.subdir){
-            print_cdict_tree(subdict, max_depth, depth + 1);
-        }
-    }
-    //is a normal file
-    else{
-        std::cout   << stringtimes(UI::VERTICAL_PIPE_STR + UI::EMPTY_DEPTH_SEPSTR, depth) << UI::PIPE_DOWN_STR << UI::FILE_ARROW_STR
-                    <<  cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::END << PCL::NOFLUSH;
-    }
-
-    if(first) std::cout << "\nSize of current directiory: " << size_ext(cdict.value) << std::endl;
-
-}
-
-void print_new_tree(
+void print_cdict_tree(
     const Contentdict& cdict,
     uint16_t max_depth = 12,
     uint16_t depth = 0,
-    bool first = false,
-    bool last = false,
+    bool first = true,
+    bool last = true,
     std::string indentstr = ""
 ){
     
-    if(first) std::cout << std::endl;
+    std::string primcol = get_primcol();
+    std::string seccol = get_seccol();
+
+    if(first) {
     
+        Progress_bar::clear();
 
-    std::cout << indentstr << (last ? "╰─>" : "├─>")  << (cdict.subdir.empty() ? "" : PCL::BLUE) << cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::END << PCL::NOFLUSH;
-    
+        std::cout << seccol << UI::LTITLESYMBOL << PCL::END;
+        std::cout << primcol << cdict.key;
+        std::cout << seccol << UI::RTITLESYMBOL << PCL::END << std::endl;
 
+    }
+    else {
 
+        std::cout   << indentstr << (first ? "" : (last ? UI::LAST_RPIPE : UI::NOTLAST_RPIPE))  //chose symbols before the file/dir name  
+                << (cdict.subdir.empty() ? "" : seccol) << cdict.key                    //print file/dir name with color if dir
+                << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value)                    //print seperator and size of file/dir
+                << PCL::END << PCL::NOFLUSH;                                            //remove all color codes and newline
+
+    }
 
     if(cdict.subdir.empty() && first == true){
         std::cout << info_str("This directory is empty.") << std::endl;
@@ -517,15 +519,20 @@ void print_new_tree(
 
     if (cdict.subdir.size()) {
 
+        if(depth + 1 == max_depth){
+            std::cout << indentstr + (last ? UI::EMPTY_FILLER : UI::FILLED_FILLER) << UI::DOTDOTDOT_STR << PCL::END <<PCL::NOFLUSH;
+            return;
+        }
+
         size_t i = 0;
 
         for(const Contentdict& subdict : cdict.subdir){
 
             i++;
 
-            std::string newindentstr = indentstr + (last ? "\t" : "│\t");
+            std::string newindentstr = indentstr + (last ? "" : UI::DOWNPIPE) + (first ? "" : UI::EMPTY_FILLER);
 
-            print_new_tree(
+            print_cdict_tree(
                 subdict,
                 max_depth,
                 depth + 1,
@@ -577,28 +584,9 @@ void print_cdict_table(const Contentdict& cdict){
     );
 
 
-    std::string primcol;
-    std::string seccol; 
-
-    //personal modification of mine. Compile via "make winper / uniper" to use
-    #ifdef _PERSONAL_MODE
-
-        char* primcolenv = std::getenv("primcol");
-        char* seccolenv = std::getenv("seccol");
-
-        if (primcolenv == NULL) primcol = UI::TABLE_HEADER_COLOR;
-        else                    primcol = "\033[" + std::string(primcolenv) + "m";
-             
-        if (seccolenv == NULL) seccol = UI::TABLE_LINE_COLOR;
-        else                   seccol = "\033[" + std::string(seccolenv)  + "m";
-
-    #else
-
-        primcol = UI::TABLE_HEADER_COLOR;
-        seccol = UI::TABLE_LINE_COLOR;
-
-    #endif
-
+    //select primary and secondary color
+    std::string primcol = get_primcol();
+    std::string seccol = get_seccol(); 
 
     //Header
     std::cout << std::left << primcol

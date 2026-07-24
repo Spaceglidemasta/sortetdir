@@ -65,13 +65,13 @@ namespace UI
     std::string FIRST_ROW_STR           = "Name";
     std::string SEC_ROW_STR             = "Type";
     std::string THIRD_ROW_STR           = "Size";
-    std::string PIPE_DOWN_STR           = "├";
-    std::string VERTICAL_PIPE_STR       = "│";
-    std::string DIR_ARROW_STR           = "┼> ";
-    std::string CROSS_PIPE_STR          = "┼";
-    std::string FILE_ARROW_STR          = "> ";
-    std::string EMPTY_DEPTH_SEPSTR      = "      ";
-    std::string FILLED_DEPTH_SEPSTR     = "──────";
+    std::string LTITLESYMBOL            = "[";
+    std::string RTITLESYMBOL            = "]";
+    std::string NOTLAST_RPIPE           = "├─ ";
+    std::string LAST_RPIPE              = "╰─ ";
+    std::string EMPTY_FILLER            = "\t";
+    std::string FILLED_FILLER           = "│\t";
+    std::string DOWNPIPE                = "│";
     std::string DOTDOTDOT_STR           = " ...";
     std::string KEY_AND_VALUE_SEPSTR    = ": ";
 
@@ -79,4 +79,6 @@ namespace UI
     std::string TABLE_LINE_COLOR        = PCL::BLUE;
     std::string TABLE_LINE_CHAR         = "-";
 
+
+    
 }
