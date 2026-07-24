@@ -493,6 +493,55 @@ void print_cdict_tree(const Contentdict& cdict, short int max_depth = 12, short 
 
 }
 
+void print_new_tree(
+    const Contentdict& cdict,
+    uint16_t max_depth = 12,
+    uint16_t depth = 0,
+    bool first = false,
+    bool last = false,
+    std::string indentstr = ""
+){
+    
+    if(first) std::cout << std::endl;
+    
+
+    std::cout << indentstr << (last ? "╰─>" : "├─>")  << (cdict.subdir.empty() ? "" : PCL::BLUE) << cdict.key << UI::KEY_AND_VALUE_SEPSTR << size_ext(cdict.value) << PCL::END << PCL::NOFLUSH;
+    
+
+
+
+    if(cdict.subdir.empty() && first == true){
+        std::cout << info_str("This directory is empty.") << std::endl;
+        return;
+    }
+
+    if (cdict.subdir.size()) {
+
+        size_t i = 0;
+
+        for(const Contentdict& subdict : cdict.subdir){
+
+            i++;
+
+            std::string newindentstr = indentstr + (last ? "\t" : "│\t");
+
+            print_new_tree(
+                subdict,
+                max_depth,
+                depth + 1,
+                false,
+                (i == cdict.subdir.size()),
+                newindentstr
+            );
+            
+        }
+    }
+
+
+    if(first) std::cout << "\nSize of current directiory: " << size_ext(cdict.value) << std::endl;
+
+}
+
 void print_cmdargs_help() {
     std::cout << "Wrong usage! Correct usage: ls <flag>" << std::endl;
     std::cout << "Flags: tree, table (standard), cmd";

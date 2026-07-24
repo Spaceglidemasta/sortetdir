@@ -274,7 +274,8 @@ int main(int argc, char const *argv[]){
 
             }
 
-             print_cdict_tree(cdict, maxdepth);
+            //print_cdict_tree(cdict, maxdepth);
+            print_new_tree(cdict, maxdepth, 0, true, true);
 
             return 0;
         }
