@@ -7,7 +7,7 @@
     Github - @spaceglidemasta
 */
 
-//TODO structure code & FIX INSTALLATION PROGRESS
+//TODO FIX INSTALLATION PROGRESS
 //TODO update README about cla
 
 
@@ -16,10 +16,11 @@
 #include <functional>
 #include <cstdlib>
 #include <memory>
-#include "printing.cpp"
+
+#include "fetching.cpp"
 
 
-namespace fs = std::filesystem;
+
 
 //Command struct with .name and .args
 struct Command {
@@ -27,319 +28,31 @@ struct Command {
     std::vector<std::string> args;
 };
 
-//returns the cmd-prompt string, using the UI and PCL namespace
-std::string get_cmd_prompt(const Session& ses, const Contentdict& cdict){
-    
-    std::ostringstream oss;
-    oss << PCL::BLUE << UI::PRE_PROMPT << PCL::CYAN << short_path(ses, cdict) << PCL::BLUE << UI::POST_PROMPT << PCL::END << UI::COMMAND_LINE_LINE;
-
-    return oss.str();
-}
-
-
-//Tests if the given directory is hidden. Uses a Libary from 1985 for this.
-bool is_hidden(const std::filesystem::directory_entry& entry) {
-
-    //debug:
-    //if(entry.path().filename().string() == ".git")std::cout << entry.path().filename().string() << attrs << ((attrs & FILE_ATTRIBUTE_HIDDEN ) != 0) << std::endl;
-
-    #ifdef _WIN32
-        DWORD attrs = GetFileAttributesW(entry.path().wstring().c_str());
-        return (attrs & (FILE_ATTRIBUTE_HIDDEN)) != 0; //return (attrs == FAH)
-
-    #else //unix
-        //unix and macos hidden filenames and dirs start with '.'
-        const auto filename = entry.path().filename().string();
-        return !filename.empty() && filename[0] == '.';
-
-    #endif
-}
-
-
-//sets the time attributes of the cdict via reference
-bool cdict_set_filetime(Contentdict& cdict, std::string pathname){
-
-    #ifdef _WIN32
-
-        FILETIME ft_creation_time;
-
-        HANDLE entryhandle;
-
-        if(cdict.type == UI::DIR_TYPE_NAME){
-            entryhandle = CreateFileA(
-                                pathname.c_str(),
-                                0,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                NULL,
-                                OPEN_EXISTING,
-                                FILE_FLAG_BACKUP_SEMANTICS,
-                                NULL
-                            );
-        }
-        else if(cdict.type == UI::FILE_TYPE_NAME){
-            entryhandle = CreateFileA(
-                                pathname.c_str(),
-                                GENERIC_READ,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                NULL,
-                                OPEN_EXISTING,
-                                FILE_ATTRIBUTE_NORMAL,
-                                NULL
-                            );
-        }
-        else{
-            if(OPTIONS::DEBUG) std::cout << "File " << pathname << " cannot be accessed because its type is N/A\n";
-            return false;
-        }
-        
-        
-
-        if(entryhandle == INVALID_HANDLE_VALUE) {
-            if(OPTIONS::DEBUG) std::cout << "CreateFile failed: " << pathname << std::endl;
-            return false;
-        }
-        
-        //return false if the GetFileTime process failed.
-        if(!GetFileTime(entryhandle, &ft_creation_time, NULL, NULL)){
-            if(OPTIONS::DEBUG) std::cout << warning_str("GetFileTime failed: ") << pathname << std::endl;
-            CloseHandle(entryhandle);
-            return false;
-        }
-        
-        ULARGE_INTEGER ull;
-        ull.LowPart  = ft_creation_time.dwLowDateTime;
-        ull.HighPart = ft_creation_time.dwHighDateTime;
-
-        // Windows to Unix epoch offset (in 100-ns ticks)
-        static constexpr unsigned long long EPOCH_DIFF = 116444736000000000ULL;
-
-        // Convert windows ticks to unix ns
-        ULONGLONG unixTime100ns = ull.QuadPart - EPOCH_DIFF;
-
-        auto timepoint = std::chrono::system_clock::time_point(
-            std::chrono::duration_cast<std::chrono::system_clock::duration>(
-                std::chrono::nanoseconds(unixTime100ns * 100)
-            )
-        );
-
-        cdict.creation_date = timepoint;
-        CloseHandle(entryhandle);
-
-    #elif __APPLE__
-
-        struct stat st{};
-        if (stat(pathname.c_str(), &st) != 0) {
-            if(OPTIONS::DEBUG) std::cout << "stat failed: " << pathname << std::endl;
-            return false;
-        }
-
-        // st_birthtimespec = struct timespec { tv_sec, tv_nsec }
-        auto timepoint = std::chrono::system_clock::time_point{
-            std::chrono::seconds(st.st_birthtimespec.tv_sec) +
-            std::chrono::nanoseconds(st.st_birthtimespec.tv_nsec)
-        };
-        
-        cdict.creation_date = timepoint;
-
-    #else //linux
-
-        //im not gonna mess with all these FS, yall really need to implement this globally.
-
-    #endif
-
-    return true;
-}
-
-
-
-
-Contentdict get_size(
-    const fs::directory_entry& entry,
-    Contentdict* phomedir = nullptr,
-    Progress_bar* pprgbar = nullptr,
-    uint16_t depth = 0
-) {
-
-    Contentdict currentdict;
-    depth++;
-
-
-    fs::file_status status = entry.symlink_status();
-    if (fs::is_symlink(status)){
-        currentdict.symlinks_skipped +=1;
-        return currentdict;
-    }
-
-    if (fs::is_directory(status)){
-
-        try {
-
-            currentdict.key = entry.path().filename().string();
-
-            currentdict.type = UI::DIR_TYPE_NAME;
-            
-            for (const fs::directory_entry& current_entry : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied)) {
-
-                //start the next recursion
-                Contentdict nextdict = get_size(current_entry, phomedir, pprgbar, depth);
-
-                //only load pprgbar in depth 1. Can be changed in the future to handle more accuracy, but needs to be extended to count these to "total"
-                if(depth == 1 && pprgbar) pprgbar -> update_progressbar();
-
-                //calculate the size (the important part here)
-                currentdict.value += nextdict.value;
-
-                //increment the dirs & files contained;
-                if(nextdict.type == UI::DIR_TYPE_NAME){
-                    currentdict.dirs_contained += nextdict.dirs_contained + 1;
-                    currentdict.files_contained += nextdict.files_contained;
-                }
-                else currentdict.files_contained++;
-
-                currentdict.subdir.push_back(std::move(nextdict));
-            }
-        }
-        catch (const fs::filesystem_error& _) {
-            
-            //some dirs can not be scanned because they are symlinks.
-            //these are catched here and increase .symlinks_skipped
-            currentdict.symlinks_skipped += 1;
-        }
-    } 
-    else if (fs::is_regular_file(status)){
-
-        currentdict.key = entry.path().filename().string();
-        currentdict.value +=  entry.file_size(); //final filesize that gets recursed up
-        currentdict.type = UI::FILE_TYPE_NAME;
-    }
-
-    currentdict.is_invisible = is_hidden(entry);
-    //is always done, doesnt care about entry type
-    currentdict.path = entry.path().string();
-
-    return currentdict;
-}
-
-
 enum Execution_t {
     TABLE,
     TREE,
     CMDLINE,
-    INVALID
+    INVALID,
+    DEFAULT,
+    HELP
 };
 
-int main(int argc, const char* argv[]){
+struct Runmode {
 
-    Execution_t extype = TABLE;
-    std::string destination = "";
-    bool take_num_in = false;
-    int numarg = 0;
+    Execution_t extype;
+    std::string destination;
+    int numarg;
 
-    if(argc == 1){
-        extype = TABLE;
-    }
-
-    for (size_t i = 1; i < argc; i++) {
-        const char* arg = argv[i];
-
-        if (take_num_in) {
-
-            numarg = atoi(arg) + 1; //+1 because without it the depth feels uintuitive
-
-            if (numarg == 0) {
-
-                std::cerr << "WARNING: tree-depth \"" << arg << "\" is not an integer and will be ignored.\n"; 
-
-                numarg = 12;
-                
-            }
-
-            take_num_in = false;
-            continue; //skip to next arg
-        }
-
-        
-        if(!strcmp(arg, "-t") || !strcmp(arg, "--table")) extype = TABLE;
-
-        else if(!strcmp(arg, "-b") || !strcmp(arg, "--tree")) {
-
-            extype = TREE;
-
-            take_num_in = true;
-        }
-
-        else if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-            
-            print_help();
-            
-            return 0;
-        }
-
-        else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) extype = CMDLINE;
-
-        else destination = arg;
+};
 
 
-    }
-    
+typedef std::unordered_map<std::string, std::function<void(const Session&, const Command&, Contentdict*&)>> CommandList;
 
-    load_json();
-    /*
-        Init the fs::directory_entry for get_size() and call.
-        This is always done
-    */
+CommandList registerCommands(){
 
-    fs::directory_entry cwd_entry;
-
-    if(destination != "") {
-        fs::path p(destination);
-
-        if (!fs::exists(p)){
-            std::cerr << "Invalid Path given.\n";
-            return 1;
-        }
-
-        cwd_entry = fs::directory_entry(p);
-
-    }
-    else {
-        cwd_entry = fs::directory_entry(fs::current_path());
-    }
-
-    Contentdict cdict;
-    Contentdict* pcdict = &cdict;
-    Session mainses;
-
-    mainses.homedir = pcdict;
-
-    Progress_bar prgbar(cwd_entry);
-    cdict  = get_size(cwd_entry, pcdict, &prgbar);
-
-    switch (extype)
-    {
-    case TABLE:
-        print_cdict_table(cdict);
-        return 0;
-
-    case TREE:
-        print_cdict_tree(cdict, numarg);
-        return 0;
-    
-    case CMDLINE:
-        std::cout << std::endl;
-        break;
-
-    default:
-        std::cout << "this should not have happened\n";
-        break;
-    }
-
-
-    //json-object-a-like to store {command-name : command-func}
-    std::unordered_map<std::string, std::function<void(const Session&, const Command&, Contentdict*&)>> COMMANDS;
-
+    CommandList commands;
     //shows descriptions for every command
-    COMMANDS["help"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["help"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -363,7 +76,7 @@ int main(int argc, const char* argv[]){
     };
     
     //quits the program
-    COMMANDS["q"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["q"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
         std::exit(0);
     };
 
@@ -374,7 +87,7 @@ int main(int argc, const char* argv[]){
         Used to be handled by having the whole contendict system beeing pointer based,
         which turned out to be to complicated for its simple use.
     */
-    COMMANDS["cd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["cd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         //goes to the home directory, just like in Linux.
         if (cmd.args.empty()) {
@@ -415,7 +128,7 @@ int main(int argc, const char* argv[]){
     };
 
     //the "what" program is not yet released  / shit af, so you can safely ignore this and the "what" command
-    COMMANDS["what"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["what"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!WHAT_ENABLED){
             std::cout   << warning_str("Enable \"WHAT_ENABLED\" and install the \"what\" program from repo.\n")
@@ -436,7 +149,7 @@ int main(int argc, const char* argv[]){
     };
 
     //prints a tree view of the cdict. Try it.
-    COMMANDS["tree"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["tree"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if((cmd.args.empty())){
             print_cdict_tree(*cdict, TREE_DEFAULT_MAX_DEPTH, TREE_DEFAULT_DEPTH, true);
@@ -457,7 +170,7 @@ int main(int argc, const char* argv[]){
     
 
     //prints a table view of the cdict.
-    COMMANDS["table"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["table"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -467,7 +180,7 @@ int main(int argc, const char* argv[]){
     };
 
     //Clears the screen. Windows's "cls"
-    COMMANDS["cls"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["cls"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         #ifdef _WIN32
             std::system("cls");
@@ -482,7 +195,7 @@ int main(int argc, const char* argv[]){
     };
 
     //Prints Working Directory. Linux's "pwd". I hate that on w64 "cd" pwd's
-    COMMANDS["pwd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["pwd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -491,9 +204,9 @@ int main(int argc, const char* argv[]){
         std::cout << cdict -> path << std::endl;
     };
         
-    std::string cmd_input; //cmd-line input
+    
 
-    COMMANDS["info"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["info"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if(cmd.args.empty()){
 
@@ -533,6 +246,167 @@ int main(int argc, const char* argv[]){
         
     };
 
+    return commands;
+
+}
+
+
+
+Runmode parseArgs(int argc, const char* argv[]) {
+
+    Runmode rm;
+    rm.extype = DEFAULT;
+    rm.destination = "";
+    bool take_num_in = false;
+    rm.numarg = 0;
+
+    if(argc == 1){
+        rm.extype = TABLE;
+    }
+
+    for (size_t i = 1; i < argc; i++) {
+        const char* arg = argv[i];
+
+        if (take_num_in) {
+
+            rm.numarg = atoi(arg) + 1; //+1 because without it the depth feels uintuitive
+
+            if (rm.numarg == 0) {
+
+                std::cerr << "WARNING: tree-depth \"" << arg << "\" is not an integer and will be ignored.\n"; 
+
+                rm.numarg = 12;
+                
+            }
+
+            take_num_in = false;
+            continue; //skip to next arg
+        }
+
+        
+        if(!strcmp(arg, "-t") || !strcmp(arg, "--table")){ 
+            if(rm.extype == DEFAULT) rm.extype = TABLE;
+
+            else {
+                print_syntax_error();
+
+                return rm;
+            }
+
+        }
+
+        else if(!strcmp(arg, "-b") || !strcmp(arg, "--tree")) {
+
+            if(rm.extype == DEFAULT) rm.extype = TREE;
+
+            else {
+                print_syntax_error();
+
+                return rm;
+            }
+
+            take_num_in = true;
+        }
+
+        else if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
+            
+            rm.extype = HELP;
+            
+            return rm;
+        }
+
+        else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) rm.extype = CMDLINE;
+
+        else {
+
+            if (rm.destination == ""){
+                rm.destination = arg;
+            }
+            else {
+                print_syntax_error();
+                return rm;
+            }
+
+
+
+        }
+
+
+    }
+
+    if(rm.extype == DEFAULT && rm.destination != "") rm.extype = TABLE;
+
+    return rm;
+
+}
+
+
+int main(int argc, const char* argv[]){
+
+    
+    Runmode rm = parseArgs(argc, argv);
+
+    if(rm.extype == HELP) {
+        print_help();
+        return 0;
+    }
+
+    /*
+        Init the fs::directory_entry for get_size() and call.
+        This is always done
+    */
+
+    fs::directory_entry cwd_entry;
+
+    if(rm.destination != "") {
+        fs::path p(rm.destination);
+
+        if (!fs::exists(p)){
+            std::cerr << "Invalid Path given.\n";
+            return 1;
+        }
+
+        cwd_entry = fs::directory_entry(p);
+
+    }
+    else {
+        cwd_entry = fs::directory_entry(fs::current_path());
+    }
+
+    Contentdict cdict;
+    Contentdict* pcdict = &cdict;
+    Session mainses;
+
+    mainses.homedir = pcdict;
+
+    Progress_bar prgbar(cwd_entry);
+    cdict  = get_size(cwd_entry, pcdict, &prgbar);
+
+    load_json();
+
+    switch (rm.extype)
+    {
+    case TABLE:
+        print_cdict_table(cdict);
+        return 0;
+
+    case TREE:
+        print_cdict_tree(cdict, rm.numarg);
+        return 0;
+    
+    case CMDLINE:
+        std::cout << std::endl;
+        break;
+
+    default:
+        std::cout << "this should not have happened\n";
+        return 1;
+    }
+
+
+    CommandList commands = registerCommands();
+
+    std::string cmd_input; //cmd-line input
 
     //command line UI
     while (true){
@@ -559,8 +433,8 @@ int main(int argc, const char* argv[]){
         fcmd.args = rest;
 
 
-        auto it = COMMANDS.find(fcmd.name);
-        if (it != COMMANDS.end()) { 
+        auto it = commands.find(fcmd.name);
+        if (it != commands.end()) { 
             it -> second(mainses, fcmd, pcdict);//<---- command parameters here
         }
         else {

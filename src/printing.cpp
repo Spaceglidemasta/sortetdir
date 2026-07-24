@@ -6,6 +6,7 @@
 
     Github - @spaceglidemasta
 */
+#pragma once
 
 #include <string>
 #include <iostream>
@@ -560,6 +561,13 @@ None | -t | --table  : print Table view of target directory,\n\
                        or current if no target is given. Default depth is 12.\n\
 -c | --cmd           : command-line interface with multiple commands, storing the calculated directory in memory\n";
 
+}
+
+/// @brief print the syntax-error error-message
+void print_syntax_error() {
+    std::cout
+    << "Wrong combination of arguments.\n"
+    << "use \"ls -h\" to display the help message.\n";
 }
 
 
