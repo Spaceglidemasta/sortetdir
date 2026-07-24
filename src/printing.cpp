@@ -549,9 +549,17 @@ void print_cdict_tree(
 
 }
 
-void print_cmdargs_help() {
-    std::cout << "Wrong usage! Correct usage: ls <flag>" << std::endl;
-    std::cout << "Flags: tree, table (standard), cmd";
+/// @brief prints out the help message
+void print_help() {
+    std::cout
+    << "usage: ls [option] [directory] \n\
+Options (and corresponding args):\n\
+None | -t | --table  : print Table view of target directory,\n\
+                       or current if no target is given \n\
+-b | -tree <depth>   : tree view with given depth of the target directory,\n\
+                       or current if no target is given. Default depth is 12.\n\
+-c | --cmd           : command-line interface with multiple commands, storing the calculated directory in memory\n";
+
 }
 
 

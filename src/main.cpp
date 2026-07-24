@@ -8,7 +8,7 @@
 */
 
 //TODO structure code & FIX INSTALLATION PROGRESS
-//TODO cla handling
+//TODO update README about cla
 
 
 #include <algorithm>
@@ -230,7 +230,7 @@ enum Execution_t {
 
 int main(int argc, const char* argv[]){
 
-    Execution_t extype = INVALID;
+    Execution_t extype = TABLE;
     std::string destination = "";
     bool take_num_in = false;
     int numarg = 0;
@@ -266,7 +266,13 @@ int main(int argc, const char* argv[]){
             extype = TREE;
 
             take_num_in = true;
+        }
 
+        else if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
+            
+            print_help();
+            
+            return 0;
         }
 
         else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) extype = CMDLINE;
@@ -275,12 +281,6 @@ int main(int argc, const char* argv[]){
 
 
     }
-
-    if (extype == INVALID) {
-        print_cmdargs_help();
-        return 1;
-    }
-
     
 
     load_json();
@@ -333,51 +333,6 @@ int main(int argc, const char* argv[]){
         std::cout << "this should not have happened\n";
         break;
     }
-
-
-    //if(argc == 1) {
-    //    print_cdict_table(cdict);
-    //    return 0;
-    //}
-    //else if (argc  >= 2) {
-    //    if (!strcmp(argv[1], "table")) {
-    //        print_cdict_table(cdict);
-    //        return 0;
-    //    }
-    //    else if (!strcmp(argv[1], "tree")) {
-//
-    //        int maxdepth = 12;
-//
-    //        if (argc >= 3) {
-//
-    //            // If argv[2] is not an integer, atoi will return 0
-    //            maxdepth = atoi(argv[2]);
-//
-    //            //check for invalid argv[2].
-    //            if (maxdepth <= 0) {
-    //                
-    //                std::cerr << "WARNING: tree-depth \"" << argv[2] << "\" is not an integer and will be ignored.\n"; 
-//
-    //                maxdepth = 12;
-//
-    //            }
-//
-    //        }
-//
-    //        print_cdict_tree(cdict, maxdepth);
-    //        
-    //        return 0;
-    //    }
-    //    else if (!strcmp(argv[1], "cmd")) {
-    //        Progress_bar::clear();
-    //    }
-    //    else {
-    //        print_cmdargs_help();
-    //        return 0;
-    //    }
-//
-    //    
-    //}
 
 
     //json-object-a-like to store {command-name : command-func}
