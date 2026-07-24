@@ -11,6 +11,9 @@ winper: src/main.cpp
 	g++ src/main.cpp -o $(out) $(flags) -D_PERSONAL_MODE
 	$(out)
 
+cwinper: src/main.cpp
+	g++ src/main.cpp -o $(out) $(flags) -D_PERSONAL_MODE
+
 unix: src/main.cpp
 	g++ src/main.cpp -o $(out) $(flags)
 	./$(out)

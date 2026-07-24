@@ -8,6 +8,7 @@
 */
 
 //TODO structure code & FIX INSTALLATION PROGRESS
+//TODO cla handling
 
 
 #include <algorithm>
@@ -220,22 +221,91 @@ Contentdict get_size(
 }
 
 
-int main(int argc, char const *argv[]){
+enum Execution_t {
+    TABLE,
+    TREE,
+    CMDLINE,
+    INVALID
+};
 
-    if(argc > 3){
+int main(int argc, const char* argv[]){
+
+    Execution_t extype = INVALID;
+    std::string destination = "";
+    bool take_num_in = false;
+    int numarg = 0;
+
+    if(argc == 1){
+        extype = TABLE;
+    }
+
+    for (size_t i = 1; i < argc; i++) {
+        const char* arg = argv[i];
+
+        if (take_num_in) {
+
+            numarg = atoi(arg) + 1; //+1 because without it the depth feels uintuitive
+
+            if (numarg == 0) {
+
+                std::cerr << "WARNING: tree-depth \"" << arg << "\" is not an integer and will be ignored.\n"; 
+
+                numarg = 12;
+                
+            }
+
+            take_num_in = false;
+            continue; //skip to next arg
+        }
+
+        
+        if(!strcmp(arg, "-t") || !strcmp(arg, "--table")) extype = TABLE;
+
+        else if(!strcmp(arg, "-b") || !strcmp(arg, "--tree")) {
+
+            extype = TREE;
+
+            take_num_in = true;
+
+        }
+
+        else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) extype = CMDLINE;
+
+        else destination = arg;
+
+
+    }
+
+    if (extype == INVALID) {
         print_cmdargs_help();
         return 1;
     }
 
-
+    
 
     load_json();
     /*
         Init the fs::directory_entry for get_size() and call.
         This is always done
     */
-    fs::directory_entry cwd_entry(fs::current_path());
-    
+
+    fs::directory_entry cwd_entry;
+
+    if(destination != "") {
+        fs::path p(destination);
+
+        if (!fs::exists(p)){
+            std::cerr << "Invalid Path given.\n";
+            return 1;
+        }
+
+        cwd_entry = fs::directory_entry(p);
+
+    }
+    else {
+        cwd_entry = fs::directory_entry(fs::current_path());
+    }
+
     Contentdict cdict;
     Contentdict* pcdict = &cdict;
     Session mainses;
@@ -245,49 +315,69 @@ int main(int argc, char const *argv[]){
     Progress_bar prgbar(cwd_entry);
     cdict  = get_size(cwd_entry, pcdict, &prgbar);
 
-    if(argc == 1) {
+    switch (extype)
+    {
+    case TABLE:
         print_cdict_table(cdict);
         return 0;
+
+    case TREE:
+        print_cdict_tree(cdict, numarg);
+        return 0;
+    
+    case CMDLINE:
+        std::cout << std::endl;
+        break;
+
+    default:
+        std::cout << "this should not have happened\n";
+        break;
     }
-    else if (argc  >= 2) {
-        if (!strcmp(argv[1], "table")) {
-            print_cdict_table(cdict);
-            return 0;
-        }
-        else if (!strcmp(argv[1], "tree")) {
 
-            int maxdepth = 12;
 
-            if (argc >= 3) {
-
-                // If argv[2] is not an integer, atoi will return 0
-                maxdepth = atoi(argv[2]);
-
-                //check for invalid argv[2].
-                if (maxdepth <= 0) {
-                    
-                    std::cerr << "WARNING: tree-depth \"" << argv[2] << "\" is not an integer and will be ignored.\n"; 
-
-                    maxdepth = 12;
-
-                }
-
-            }
-
-            print_cdict_tree(cdict, maxdepth);
-            
-            return 0;
-        }
-        else if (!strcmp(argv[1], "cmd")) {
-            Progress_bar::clear();
-        }
-        else {
-            print_cmdargs_help();
-            return 0;
-        }
-
-        
-    }
+    //if(argc == 1) {
+    //    print_cdict_table(cdict);
+    //    return 0;
+    //}
+    //else if (argc  >= 2) {
+    //    if (!strcmp(argv[1], "table")) {
+    //        print_cdict_table(cdict);
+    //        return 0;
+    //    }
+    //    else if (!strcmp(argv[1], "tree")) {
+//
+    //        int maxdepth = 12;
+//
+    //        if (argc >= 3) {
+//
+    //            // If argv[2] is not an integer, atoi will return 0
+    //            maxdepth = atoi(argv[2]);
+//
+    //            //check for invalid argv[2].
+    //            if (maxdepth <= 0) {
+    //                
+    //                std::cerr << "WARNING: tree-depth \"" << argv[2] << "\" is not an integer and will be ignored.\n"; 
+//
+    //                maxdepth = 12;
+//
+    //            }
+//
+    //        }
+//
+    //        print_cdict_tree(cdict, maxdepth);
+    //        
+    //        return 0;
+    //    }
+    //    else if (!strcmp(argv[1], "cmd")) {
+    //        Progress_bar::clear();
+    //    }
+    //    else {
+    //        print_cmdargs_help();
+    //        return 0;
+    //    }
+//
+    //    
+    //}
 
 
     //json-object-a-like to store {command-name : command-func}
