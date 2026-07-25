@@ -16,6 +16,7 @@
 #include <functional>
 #include <cstdlib>
 #include <memory>
+#include <stdexcept>
 
 #include "fetching.cpp"
 
@@ -34,7 +35,8 @@ enum Execution_t {
     CMDLINE,
     INVALID,
     DEFAULT,
-    HELP
+    HELP,
+    VERSION_DISPLAY
 };
 
 struct Runmode {
@@ -42,6 +44,7 @@ struct Runmode {
     Execution_t extype;
     std::string destination;
     int numarg;
+    bool needs_dir_size_calc;
 
 };
 
@@ -259,6 +262,7 @@ Runmode parseArgs(int argc, const char* argv[]) {
     rm.destination = "";
     bool take_num_in = false;
     rm.numarg = 0;
+    rm.needs_dir_size_calc = false;
 
     if(argc == 1){
         rm.extype = TABLE;
@@ -285,7 +289,10 @@ Runmode parseArgs(int argc, const char* argv[]) {
 
         
         if(!strcmp(arg, "-t") || !strcmp(arg, "--table")){ 
-            if(rm.extype == DEFAULT) rm.extype = TABLE;
+            if(rm.extype == DEFAULT) {
+                rm.needs_dir_size_calc = true;
+                rm.extype = TABLE;
+            }
 
             else {
                 print_syntax_error();
@@ -297,7 +304,10 @@ Runmode parseArgs(int argc, const char* argv[]) {
 
         else if(!strcmp(arg, "-b") || !strcmp(arg, "--tree")) {
 
-            if(rm.extype == DEFAULT) rm.extype = TREE;
+            if(rm.extype == DEFAULT) {
+                rm.needs_dir_size_calc = true;
+                rm.extype = TREE;
+            }
 
             else {
                 print_syntax_error();
@@ -315,7 +325,23 @@ Runmode parseArgs(int argc, const char* argv[]) {
             return rm;
         }
 
-        else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) rm.extype = CMDLINE;
+        else if (!strcmp(arg, "-v") || !strcmp(arg, "--version")) {
+
+            if(rm.extype == DEFAULT) rm.extype = VERSION_DISPLAY;
+
+            else {
+                print_syntax_error();
+
+                return rm;
+            }
+
+        }
+
+
+        else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) {
+            rm.needs_dir_size_calc = true;
+            rm.extype = CMDLINE;
+        }
 
         else {
 
@@ -327,43 +353,32 @@ Runmode parseArgs(int argc, const char* argv[]) {
                 return rm;
             }
 
-
-
         }
-
 
     }
 
     if(rm.extype == DEFAULT && rm.destination != "") rm.extype = TABLE;
+ 
 
     return rm;
 
 }
 
-
-int main(int argc, const char* argv[]){
-
-    
-    Runmode rm = parseArgs(argc, argv);
-
-    if(rm.extype == HELP) {
-        print_help();
-        return 0;
-    }
-
-    /*
-        Init the fs::directory_entry for get_size() and call.
-        This is always done
-    */
+/// @brief calcs full size of given directory in Runmode object
+/// @param destination name of the directory (std::filesystem syntax)
+/// @return A contentdict containing all information
+/// @throw `std::invalid_argument` in case of invalid destination path
+Contentdict calc_full_dir_size(std::string destination){
 
     fs::directory_entry cwd_entry;
 
-    if(rm.destination != "") {
-        fs::path p(rm.destination);
+    if(destination != "") {
+        fs::path p(destination);
 
+        
         if (!fs::exists(p)){
-            std::cerr << "Invalid Path given.\n";
-            return 1;
+            
+            throw std::invalid_argument("Invalid Path given.");
         }
 
         cwd_entry = fs::directory_entry(p);
@@ -374,16 +389,43 @@ int main(int argc, const char* argv[]){
     }
 
     Contentdict cdict;
-    Contentdict* pcdict = &cdict;
-    Session mainses;
-
-    mainses.homedir = pcdict;
+    
 
     Progress_bar prgbar(cwd_entry);
-    cdict  = get_size(cwd_entry, pcdict, &prgbar);
 
-    load_json();
+    return get_size(cwd_entry, &cdict, &prgbar);
 
+}
+
+
+
+int main(int argc, const char* argv[]){
+
+    
+    Runmode rm = parseArgs(argc, argv);
+
+    Contentdict cdict;
+
+    if(rm.needs_dir_size_calc){
+        
+        try {
+
+            cdict = calc_full_dir_size(rm.destination);
+            
+        } catch(std::invalid_argument& ia) {
+
+            std::cerr << "Given directory was not found: " << rm.destination << std::endl;
+            return 1;
+
+        }
+
+        load_json();
+    }
+
+    Contentdict* pcdict = &cdict;
+    Session mainses {pcdict};
+
+    
     switch (rm.extype)
     {
     case TABLE:
@@ -392,11 +434,19 @@ int main(int argc, const char* argv[]){
 
     case TREE:
         print_cdict_tree(cdict, rm.numarg);
-        return 0;
-    
+        return 0;  
+
     case CMDLINE:
         std::cout << std::endl;
         break;
+    
+    case HELP:
+        print_help();
+        return 0;
+        
+    case VERSION_DISPLAY:
+        print_version();
+        return 0;
 
     default:
         std::cout << "this should not have happened\n";

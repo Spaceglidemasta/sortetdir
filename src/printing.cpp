@@ -635,3 +635,7 @@ void print_cdict_table(const Contentdict& cdict){
     if(cdict.symlinks_skipped) std::cout << "Number of Dirs / Symlinks skipped: " << cdict.symlinks_skipped << std::endl;
 
 }
+
+void print_version() {
+    std::cout << "Version 3.3.1\n";
+}
