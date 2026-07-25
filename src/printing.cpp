@@ -637,5 +637,5 @@ void print_cdict_table(const Contentdict& cdict){
 }
 
 void print_version() {
-    std::cout << "Version 3.3.1\n";
+    std::cout << "Version 3.4.2\n";
 }
