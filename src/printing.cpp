@@ -446,11 +446,11 @@ std::vector<std::string> split_by_space(const std::string& input) {
 }
 
 std::string warning_str(const std::string& str){
-    return PCL::BOLD + PCL::RED + str + PCL::END;
+    return PCL::RED + str + PCL::END;
 }
 
 std::string info_str(const std::string& str){
-    return PCL::BOLD + PCL::YELLOW + str + PCL::END;
+    return PCL::YELLOW + str + PCL::END;
 }
 
 std::string bold_str(const std::string& str){

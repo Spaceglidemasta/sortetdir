@@ -155,18 +155,27 @@ CommandList registerCommands(){
     commands["tree"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
         if((cmd.args.empty())){
-            print_cdict_tree(*cdict, TREE_DEFAULT_MAX_DEPTH, TREE_DEFAULT_DEPTH, true);
+            print_cdict_tree(*cdict, TREE_DEFAULT_MAX_DEPTH);
             return;
         }
         else if(cmd.args.size() > 1){
             std::cout << info_str("This command only takes 0 or 1 arg, the rest were ignored.") << std::endl;
         }
+        else /* 2 args */ {
+    
+            char* endptr;
 
-        try{
-            print_cdict_tree(*cdict, std::stoi(cmd.args[0]), TREE_DEFAULT_DEPTH, true);
-        }
-        catch(std::runtime_error){
-            std::cout << warning_str("tree: Runtime Error, misused arg\n");
+            int depth = strtol((const char*) cmd.args[0].c_str(), &endptr, OPTIONS::INPUT_BASE);
+
+            if(*endptr == '\0') {
+                print_cdict_tree(*cdict, depth);            
+            }
+            else {
+                std::cerr << warning_str("Invalid tree depth given: ") << cmd.args[0] << std::endl;
+            }
+
+
+            
         }
         
     };
@@ -266,6 +275,7 @@ Runmode parseArgs(int argc, const char* argv[]) {
 
     if(argc == 1){
         rm.extype = TABLE;
+        rm.needs_dir_size_calc = true;
     }
 
     for (size_t i = 1; i < argc; i++) {
@@ -273,9 +283,13 @@ Runmode parseArgs(int argc, const char* argv[]) {
 
         if (take_num_in) {
 
-            rm.numarg = atoi(arg) + 1; //+1 because without it the depth feels uintuitive
+            char* endptr;
+            const int base = OPTIONS::INPUT_BASE;
 
-            if (rm.numarg == 0) {
+            rm.numarg = strtol(arg, &endptr, base) + 1; //+1 because without it the depth feels unintuitive
+            
+
+            if (*endptr != '\0') {
 
                 std::cerr << "WARNING: tree-depth \"" << arg << "\" is not an integer and will be ignored.\n"; 
 
@@ -357,7 +371,10 @@ Runmode parseArgs(int argc, const char* argv[]) {
 
     }
 
-    if(rm.extype == DEFAULT && rm.destination != "") rm.extype = TABLE;
+    if(rm.extype == DEFAULT && rm.destination != "") {
+        rm.extype = TABLE;
+        rm.needs_dir_size_calc = true;
+    }
  
 
     return rm;
@@ -437,7 +454,7 @@ int main(int argc, const char* argv[]){
         return 0;  
 
     case CMDLINE:
-        std::cout << std::endl;
+        Progress_bar::clear();
         break;
     
     case HELP:

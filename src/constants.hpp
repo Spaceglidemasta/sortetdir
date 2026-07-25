@@ -23,6 +23,7 @@ namespace CMPT_OPTIONS
 namespace OPTIONS
 {
     bool DEBUG    = 0;
+    const int INPUT_BASE = 10;
 }
 
 
