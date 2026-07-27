@@ -8,7 +8,7 @@
 */
 
 //TODO FIX INSTALLATION PROGRESS
-//TODO update README about cla
+
 
 
 #include <algorithm>
