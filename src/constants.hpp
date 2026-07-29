@@ -6,6 +6,10 @@
     This is for purpose of the json read logic.
 */
 
+#define __DEF2STR(d) #d
+#define DEF2STR(d) __DEF2STR(d)
+
+
 bool WHAT_ENABLED = false; //Enables support for my upcoming "what" program.
 
 constexpr double_t KB  = 1024.0;
@@ -23,7 +27,18 @@ namespace CMPT_OPTIONS
 namespace OPTIONS
 {
     bool DEBUG    = 0;
-    const int INPUT_BASE = 10;
+    int INPUT_BASE = 10;
+
+    #ifndef _JSONPATH
+
+    std::string JSON_PATH = "%appdata%\\sortetdir\\config.json";
+
+    #else
+
+    std::string JSON_PATH = DEF2STR(_JSONPATH);
+
+    #endif //_JSONPATH
+
 }
 
 

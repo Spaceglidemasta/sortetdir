@@ -67,7 +67,7 @@ constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default
 
 
 /*
-    Main structure of this program. Store most information needed for the directories.
+    Main structure of this program. Stores most information needed for the program.
 */
 struct Contentdict {
 
@@ -193,6 +193,114 @@ fs::path get_path_of_exe() {
     return exe_path.parent_path();
 }
 
+#ifdef _WIN32
+/// @brief %appdata%\sortetdir -> C:\Users\\<User>\AppData\Roaming\sortetdir
+/// @param in input string to parse
+/// @return parsed string with envvars put into it
+std::string parseEnvVars(std::string in) {
+
+    std::stringstream outbuf;
+    std::stringstream evbuff; //buffer for the env. vars
+    bool readenv = false;
+
+    for(char c : in) {
+
+        if(readenv) {
+
+            if(c == '%') {
+
+                const char* appd = std::getenv(evbuff.str().c_str());
+
+                if (appd == nullptr) {
+                    outbuf << '%' + evbuff.str() + '%';
+                } 
+                else {
+                    outbuf << appd;
+                }
+                
+                readenv = false;
+                evbuff = std::stringstream("");
+                
+            }    
+            else {
+                evbuff << c;
+            }
+
+        }
+        else if(c == '%') {
+            readenv = true;
+        }
+        else {
+            outbuf << c;
+        }
+
+    }
+
+    return outbuf.str();
+
+}
+#else
+/// @brief $(appdata)\sortetdir -> C:\Users\\<User>\AppData\Roaming\sortetdir
+/// @param in input string to parse
+/// @return parsed string with envvars put into it
+std::string parseEnvVars(std::string in) {
+
+    std::stringstream outbuf;
+    std::stringstream evbuff; //buffer for the env. vars
+    bool inside_braces = false; //starts at the '(' after the '$'
+    bool start_env = false; // starts at the '$'
+
+    for(char c : in) {
+
+        if(inside_braces) {
+
+            if(c == ')') {
+
+                const char* appd = std::getenv(evbuff.str().c_str());
+
+                if (appd == nullptr) {
+                    outbuf << "$(" + evbuff.str() + ')';
+                } 
+                else {
+                    outbuf << appd;
+                }
+                
+                inside_braces = false;
+                evbuff = std::stringstream("");
+                
+            }    
+            else {
+                evbuff << c;
+            }
+
+        }
+        else if(c == '$') {
+            start_env = true;
+        }
+        else if (c == '(' && start_env) {
+            start_env = false;
+            inside_braces = true;
+        }
+        else {
+
+            //in case of not '(' after '$'
+            if(start_env) {
+                start_env = false;
+                outbuf << '$'; 
+            }
+
+            
+            outbuf << c;
+        }
+
+    }
+
+    return outbuf.str();
+
+}
+
+#endif //_WIN32
+
 
 
 
@@ -200,28 +308,37 @@ fs::path get_path_of_exe() {
     loads all the vars from config.json
     uses nlohmann/json
 */
-bool load_json(){
+bool load_json(std::string inputpath = ""){
 
-    #ifdef _WIN32
+    std::string path;
 
-        const char* appd = std::getenv("APPDATA");
-
-    #else  //linux & macos
-
-        const char* appd = std::getenv("HOME");
-
-    #endif
-
-    std::ifstream file(std::string(appd != nullptr ? appd : ".") + "\\sortetdir\\config.json");
+    if(inputpath == "") {
+        path = parseEnvVars(OPTIONS::JSON_PATH);
+    }
+    else {
+        path = parseEnvVars(inputpath);
+    }
+    
+    std::ifstream file(path);
 
     if(!file.is_open()){
-        std::cerr << "ifstream: config.json could not be loaded.: " << get_path_of_exe() / "config.json" << std::endl;
+        
         return 1;
     }
 
     json json_data;
-    file >> json_data;
 
+    try {
+
+        file >> json_data;
+
+    } catch (nlohmann::json_abi_v3_12_0::detail::parse_error) {
+
+        return 1;
+
+    }
+
+    
     if(json_data.contains("OPTIONS")) {
         auto& options = json_data["OPTIONS"];
         if(options.contains("DEBUG")) OPTIONS::DEBUG = options["DEBUG"];
@@ -637,5 +754,5 @@ void print_cdict_table(const Contentdict& cdict){
 }
 
 void print_version() {
-    std::cout << "Version 3.4.3\n";
+    std::cout << "Version 3.4.4\n";
 }

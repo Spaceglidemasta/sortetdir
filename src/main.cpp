@@ -39,7 +39,8 @@ enum Execution_t {
     VERSION_DISPLAY
 };
 
-struct Runmode {
+/// @brief Command-Line-Argument-Context containing results of parsing args
+struct CLA_context {
 
     Execution_t extype;
     std::string destination;
@@ -62,19 +63,21 @@ CommandList registerCommands(){
         }
 
         std::cout   << PCL::BOLD << "Commands:\n" << PCL::END 
-                    << "cd      -> Change Directory to target.\n"
-                    << "           default: cd's into the home directory.\n"
-                    << "           arg1: specifies the target.\n"
-                    << "           \"cd ..\": cd's one directory up.\n"
-                    << "help    -> prints this?\n"
-                    << "q       -> "<< bold_str("q") << "uits the programm.\n"
-                    << "table   -> prints the standart sorted table\n"
-                    << "tree    -> prints a file tree of the current dir\n"
-                    << "cls     -> " << bold_str("cl") << "ears the " << bold_str("s") << "creen\n"
-                    << "pwd     -> "<< bold_str("p") << "rints " << bold_str("w") << "orking " << bold_str("d") << "irectory\n"
-                    << "info    -> Gives information about the creation of the file / dir, and how\n"
-                    << "           many files are in the dir.\n"
-                    << "           arg1: specifies the target, default is the current path.\n"
+                    << "cd <arg>        -> Change Directory to arg.\n"
+                    << "                   default: cd's into the home directory.\n"
+                    << "                   arg1: specifies the target.\n"
+                    << "                   \"cd ..\": cd's one directory up.\n"
+                    << "help            -> prints this message\n"
+                    << "q               -> "<< bold_str("q") << "uits the programm.\n"
+                    << "table           -> prints the standart sorted table\n"
+                    << "tree <arg>      -> prints a file tree of the current dir with a given depth <arg>\n"
+                    << "cls             -> " << bold_str("cl") << "ears the " << bold_str("s") << "creen\n"
+                    << "pwd             -> "<< bold_str("p") << "rints " << bold_str("w") << "orking " << bold_str("d") << "irectory\n"
+                    << "info <arg>      -> Gives information about the creation of arg, and how\n"
+                    << "                   many files are in the directory if arg is one.\n"
+                    << "                   arg1: specifies the target, default is the current path.\n"
+                    << "reload <arg>    -> reloads strings from the given path or the default path of the config if no arg given\n"
+
                     << std::endl;
     };
     
@@ -130,6 +133,7 @@ CommandList registerCommands(){
 
     };
 
+    #ifdef _PERSONAL_MODE
     //the "what" program is not yet released  / shit af, so you can safely ignore this and the "what" command
     commands["what"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
 
@@ -150,6 +154,7 @@ CommandList registerCommands(){
             std::cerr << warning_str("what: unknown error accured while executing the command.") << std::endl;
         }
     };
+    #endif
 
     //prints a tree view of the cdict. Try it.
     commands["tree"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
@@ -173,11 +178,7 @@ CommandList registerCommands(){
             else {
                 std::cerr << warning_str("Invalid tree depth given: ") << cmd.args[0] << std::endl;
             }
-
-
-            
         }
-        
     };
     
 
@@ -215,6 +216,35 @@ CommandList registerCommands(){
 
         std::cout << cdict -> path << std::endl;
     };
+
+    //Reload json config
+    commands["reload"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+
+        std::string fullargs = merge_str(cmd.args);
+
+        std::string printpath = (fullargs.empty() ? parseEnvVars(OPTIONS::JSON_PATH) : parseEnvVars(fullargs));
+
+        if(!load_json(fullargs)){
+            std::cerr << "json config was reloaded from \"" << printpath << "\"\n";
+        }
+        else {
+            std::cerr << info_str("json config could not be reloaded from ") << "\"" << printpath << "\" successfully.\n";
+        }
+
+    };
+
+    #ifdef _PERSONAL_MODE
+
+    //test and debugg
+    commands["test"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+
+        std::string fullargs = merge_str(cmd.args);
+
+        std::cout << parseEnvVars(fullargs) << std::endl;
+
+    };
+
+    #endif
         
     
 
@@ -264,18 +294,18 @@ CommandList registerCommands(){
 
 
 
-Runmode parseArgs(int argc, const char* argv[]) {
+CLA_context parseArgs(int argc, const char* argv[]) {
 
-    Runmode rm;
-    rm.extype = DEFAULT;
-    rm.destination = "";
+    CLA_context clactx;
+    clactx.extype = DEFAULT;
+    clactx.destination = "";
     bool take_num_in = false;
-    rm.numarg = 0;
-    rm.needs_dir_size_calc = false;
+    clactx.numarg = 0;
+    clactx.needs_dir_size_calc = false;
 
     if(argc == 1){
-        rm.extype = TABLE;
-        rm.needs_dir_size_calc = true;
+        clactx.extype = TABLE;
+        clactx.needs_dir_size_calc = true;
     }
 
     for (size_t i = 1; i < argc; i++) {
@@ -286,14 +316,14 @@ Runmode parseArgs(int argc, const char* argv[]) {
             char* endptr;
             const int base = OPTIONS::INPUT_BASE;
 
-            rm.numarg = strtol(arg, &endptr, base) + 1; //+1 because without it the depth feels unintuitive
+            clactx.numarg = strtol(arg, &endptr, base) + 1; //+1 because without it the depth feels unintuitive
             
 
             if (*endptr != '\0') {
 
                 std::cerr << "WARNING: tree-depth \"" << arg << "\" is not an integer and will be ignored.\n"; 
 
-                rm.numarg = 12;
+                clactx.numarg = 12;
                 
             }
 
@@ -303,30 +333,30 @@ Runmode parseArgs(int argc, const char* argv[]) {
 
         
         if(!strcmp(arg, "-t") || !strcmp(arg, "--table")){ 
-            if(rm.extype == DEFAULT) {
-                rm.needs_dir_size_calc = true;
-                rm.extype = TABLE;
+            if(clactx.extype == DEFAULT) {
+                clactx.needs_dir_size_calc = true;
+                clactx.extype = TABLE;
             }
 
             else {
                 print_syntax_error();
 
-                return rm;
+                return clactx;
             }
 
         }
 
         else if(!strcmp(arg, "-b") || !strcmp(arg, "--tree")) {
 
-            if(rm.extype == DEFAULT) {
-                rm.needs_dir_size_calc = true;
-                rm.extype = TREE;
+            if(clactx.extype == DEFAULT) {
+                clactx.needs_dir_size_calc = true;
+                clactx.extype = TREE;
             }
 
             else {
                 print_syntax_error();
 
-                return rm;
+                return clactx;
             }
 
             take_num_in = true;
@@ -334,54 +364,54 @@ Runmode parseArgs(int argc, const char* argv[]) {
 
         else if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
             
-            rm.extype = HELP;
+            clactx.extype = HELP;
             
-            return rm;
+            return clactx;
         }
 
         else if (!strcmp(arg, "-v") || !strcmp(arg, "--version")) {
 
-            if(rm.extype == DEFAULT) rm.extype = VERSION_DISPLAY;
+            if(clactx.extype == DEFAULT) clactx.extype = VERSION_DISPLAY;
 
             else {
                 print_syntax_error();
 
-                return rm;
+                return clactx;
             }
 
         }
 
 
         else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) {
-            rm.needs_dir_size_calc = true;
-            rm.extype = CMDLINE;
+            clactx.needs_dir_size_calc = true;
+            clactx.extype = CMDLINE;
         }
 
         else {
 
-            if (rm.destination == ""){
-                rm.destination = arg;
+            if (clactx.destination == ""){
+                clactx.destination = arg;
             }
             else {
                 print_syntax_error();
-                return rm;
+                return clactx;
             }
 
         }
 
     }
 
-    if(rm.extype == DEFAULT && rm.destination != "") {
-        rm.extype = TABLE;
-        rm.needs_dir_size_calc = true;
+    if(clactx.extype == DEFAULT && clactx.destination != "") {
+        clactx.extype = TABLE;
+        clactx.needs_dir_size_calc = true;
     }
  
 
-    return rm;
+    return clactx;
 
 }
 
-/// @brief calcs full size of given directory in Runmode object
+/// @brief calcs full size of given directory in CLA_context object
 /// @param destination name of the directory (std::filesystem syntax)
 /// @return A contentdict containing all information
 /// @throw `std::invalid_argument` in case of invalid destination path
@@ -419,38 +449,40 @@ Contentdict calc_full_dir_size(std::string destination){
 int main(int argc, const char* argv[]){
 
     
-    Runmode rm = parseArgs(argc, argv);
+    CLA_context clactx = parseArgs(argc, argv);
 
     Contentdict cdict;
 
-    if(rm.needs_dir_size_calc){
+    if(clactx.needs_dir_size_calc){
         
         try {
 
-            cdict = calc_full_dir_size(rm.destination);
+            cdict = calc_full_dir_size(clactx.destination);
             
         } catch(std::invalid_argument& ia) {
 
-            std::cerr << "Given directory was not found: " << rm.destination << std::endl;
+            std::cerr << "Given directory was not found: " << clactx.destination << std::endl;
             return 1;
 
         }
 
-        load_json();
+        if(load_json()) std::cerr << "ifstream: config.json could not be loaded.: " << get_path_of_exe() / "config.json" << std::endl;
+        
     }
 
-    Contentdict* pcdict = &cdict;
-    Session mainses {pcdict};
+    //create session obj. with this directory as home-directory
+    Contentdict* pcdict = &cdict;   
+    Session mainses {pcdict};       
 
     
-    switch (rm.extype)
+    switch (clactx.extype)
     {
     case TABLE:
         print_cdict_table(cdict);
         return 0;
 
     case TREE:
-        print_cdict_tree(cdict, rm.numarg);
+        print_cdict_tree(cdict, clactx.numarg);
         return 0;  
 
     case CMDLINE:
@@ -470,7 +502,7 @@ int main(int argc, const char* argv[]){
         return 1;
     }
 
-
+    //Map: std::string -> void (*_) (const Session&, const Command&, Contentdict*&)
     CommandList commands = registerCommands();
 
     std::string cmd_input; //cmd-line input
