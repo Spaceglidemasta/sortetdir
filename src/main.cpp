@@ -7,8 +7,8 @@
     Github - @spaceglidemasta
 */
 
-//TODO FIX INSTALLATION PROGRESS
-
+//TODO Installation process for bash
+//TODO "Did you mean ... (similar str)" for input strings
 
 
 #include <algorithm>
@@ -18,45 +18,290 @@
 #include <memory>
 #include <stdexcept>
 
+#include "util.cpp"
 #include "fetching.cpp"
 
 
 
 
-//Command struct with .name and .args
-struct Command {
-    std::string name;
-    std::vector<std::string> args;
-};
-
-enum Execution_t {
-    TABLE,
-    TREE,
-    CMDLINE,
-    INVALID,
-    DEFAULT,
-    HELP,
-    VERSION_DISPLAY
-};
-
-/// @brief Command-Line-Argument-Context containing results of parsing args
-struct CLA_context {
-
-    Execution_t extype;
-    std::string destination;
-    int numarg;
-    bool needs_dir_size_calc;
-
-};
 
 
-typedef std::unordered_map<std::string, std::function<void(const Session&, const Command&, Contentdict*&)>> CommandList;
+
+/// @brief arg2 = "C:/programming;
+///        arg3 =  scripts"
+/// @return "C:/programming scripts"
+std::string parserGetFullStrViaQuotes(int argc, const char* argv[], size_t start, int* args_skipped){
+
+    if (start >= argc) {
+        std::cerr << "(parserGetFullStrViaQuotes) Garbage function call: start >= argc\n";
+        *args_skipped = 0;
+        return "";
+    }
+
+    argv += start;
+    argc -= start;
+
+    
+    if (*(argv[0]) != '\"') {
+
+        *args_skipped = 1;
+
+        return std::string(argv[0]);
+
+    } else {
+
+        argv[0]++;
+
+    }
+
+    std::stringstream outss;
+    std::stringstream errss;
+    bool done = false;
+
+    for (int i = 0; i < argc; i++) {
+
+        std::string arg = argv[i];
+
+        for (char c : arg) {
+            if (!done) {
+                if (c == '\"') {
+                    done = true;
+                } else {
+                    outss << c;
+                }
+            } else {
+                errss << c;
+            }
+        }
+
+        if (done) {
+            *args_skipped = i + 1;
+            break;
+        }
+
+        if (i < argc - 1) {
+            outss << ' '; // Leerzeichen wiederherstellen, das die Shell zwischen den Args entfernt hat
+        }
+    }
+
+    if (done) {
+        if (!errss.str().empty()) {
+            std::cerr << "The following garbage after the ending quotationmarks was ignored: \""
+                       << errss.str() << "\"\n";
+        }
+        return outss.str();
+    }
+
+    
+    *args_skipped = argc;
+    return outss.str();
+}
+
+
+
+Session parseArgs(int argc, const char* argv[]) {
+
+    Session clactx;
+    clactx.extype = DEFAULT;
+    clactx.destination = "";
+    clactx.numarg = 0;
+    clactx.needs_dir_size_calc = false;
+    clactx.path_to_cfg = "";
+
+    argsParsingState state = NEXT_ARG;
+
+    if(argc == 1){
+        clactx.extype = TABLE;
+        clactx.needs_dir_size_calc = true;
+    }
+
+
+    std::string arg;
+    for (size_t i = 1; i < argc; i++) {
+        arg = argv[i];
+
+        switch (state)
+        {
+        case NEXT_ARG:
+            {
+                if((arg == "-t") || (arg == "--table")){ 
+                    if(clactx.extype == DEFAULT) {
+                        clactx.needs_dir_size_calc = true;
+                        clactx.extype = TABLE;
+                    }
+
+                    else {
+                        print_syntax_error();
+
+                        return clactx;
+                    }
+
+                }
+
+                else if((arg == "-b") || (arg == "--tree")) {
+
+                    if(clactx.extype == DEFAULT) {
+                        clactx.needs_dir_size_calc = true;
+                        clactx.extype = TREE;
+                    }
+
+                    else {
+                        print_syntax_error();
+
+                        return clactx;
+                    }
+
+                    state = INT_PARAMETER;
+                }
+
+                else if ((arg == "-h") || (arg == "--help")) {
+                    
+                    clactx.extype = HELP;
+                    
+                    return clactx;
+                }
+
+                else if ((arg == "-j") || (arg == "--config") || (arg == "--cfg")) {
+
+                    state = STRING_PARAMETER;
+                    
+                    
+                }
+
+                else if ((arg == "-v") || (arg == "--version")) {
+
+                    if(clactx.extype == DEFAULT) clactx.extype = VERSION_DISPLAY;
+
+                    else {
+                        print_syntax_error();
+
+                        return clactx;
+                    }
+
+                }
+
+
+                else if((arg == "-c") || (arg == "--cmd")) {
+                    clactx.needs_dir_size_calc = true;
+                    clactx.extype = CMDLINE;
+                }
+
+                else {
+
+                    if (clactx.destination == ""){
+                        clactx.destination = arg;
+                    }
+                    else {
+                        print_syntax_error();
+                        return clactx;
+                    }
+
+                }
+                
+                break;
+            }
+        
+        case STRING_PARAMETER:
+            {
+
+                int skipped;
+                clactx.path_to_cfg = parserGetFullStrViaQuotes(argc, argv, i, &skipped);
+
+                #ifdef DEBUG
+                std::cout << "String Parameter:" << clactx.path_to_cfg << std::endl;
+                #endif
+
+                i += (skipped - 1);
+                state = NEXT_ARG;
+
+                break;
+
+
+            }
+            
+            
+            
+
+        case INT_PARAMETER:
+            {
+                char* endptr;
+                const int base = OPTIONS::INPUT_BASE;
+
+                clactx.numarg = strtol(arg.c_str(), &endptr, base) + 1; //+1 because without it the depth feels unintuitive
+                
+
+                if (*endptr != '\0') {
+
+                    std::cerr << "WARNING: tree-depth \"" << arg << "\" is not an integer and will be ignored.\n"; 
+
+                    clactx.numarg = 12;
+                    
+                }
+
+                state = NEXT_ARG;
+                continue; //skip to next arg
+            }
+
+            default:
+            {
+                std::cerr << "This should never happen. You memory is corrupted.\n";
+                
+                clactx.extype = INVALID;
+                return clactx;
+            }
+        }
+
+    }
+
+    if(clactx.extype == DEFAULT && clactx.destination != "") {
+        clactx.extype = TABLE;
+        clactx.needs_dir_size_calc = true;
+    }
+
+    return clactx;
+
+}
+
+
+/// @brief calcs full size of given directory in Session object
+/// @param destination name of the directory (std::filesystem syntax)
+/// @return A contentdict containing all information
+/// @throw `std::invalid_argument` in case of invalid destination path
+DirElement calc_full_dir_size(std::string destination){
+
+    fs::directory_entry cwd_entry;
+
+    if(destination != "") {
+        fs::path p(destination);
+
+        
+        if (!fs::exists(p)){
+            
+            throw std::invalid_argument("Invalid Path given.");
+        }
+
+        cwd_entry = fs::directory_entry(p);
+
+    }
+    else {
+        cwd_entry = fs::directory_entry(fs::current_path());
+    }
+
+    DirElement cdict;
+    
+
+    Progress_bar prgbar(cwd_entry);
+
+    return get_size(cwd_entry, &cdict, &prgbar);
+
+}
+
 
 CommandList registerCommands(){
 
     CommandList commands;
     //shows descriptions for every command
-    commands["help"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["help"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -82,7 +327,7 @@ CommandList registerCommands(){
     };
     
     //quits the program
-    commands["q"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["q"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
         std::exit(0);
     };
 
@@ -93,7 +338,7 @@ CommandList registerCommands(){
         Used to be handled by having the whole contendict system beeing pointer based,
         which turned out to be to complicated for its simple use.
     */
-    commands["cd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["cd"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         //goes to the home directory, just like in Linux.
         if (cmd.args.empty()) {
@@ -119,7 +364,7 @@ CommandList registerCommands(){
 
         //if fullargs is (or is not) a subdir of cdict.
         //normal cd behavior
-        for(Contentdict& entry : cdict -> subdir){
+        for(DirElement& entry : cdict -> subdir){
             if(entry.key == fullargs){
                 //cd logic
                 entry.parent = cdict;
@@ -135,7 +380,7 @@ CommandList registerCommands(){
 
     #ifdef _PERSONAL_MODE
     //the "what" program is not yet released  / shit af, so you can safely ignore this and the "what" command
-    commands["what"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["what"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         if(!WHAT_ENABLED){
             std::cout   << warning_str("Enable \"WHAT_ENABLED\" and install the \"what\" program from repo.\n")
@@ -156,8 +401,9 @@ CommandList registerCommands(){
     };
     #endif
 
+    //TODO target selection
     //prints a tree view of the cdict. Try it.
-    commands["tree"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["tree"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         if((cmd.args.empty())){
             print_cdict_tree(*cdict, TREE_DEFAULT_MAX_DEPTH);
@@ -181,19 +427,36 @@ CommandList registerCommands(){
         }
     };
     
-
+    
     //prints a table view of the cdict.
-    commands["table"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["table"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
-        if(!(cmd.args.empty())){
-            std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
+        if(cmd.args.empty()){
+            print_cdict_table(*cdict); 
+        }
+        else {
+
+            std::string fullargs = merge_str(cmd.args);
+
+            for(DirElement& entry : cdict -> subdir){
+                if(entry.key == fullargs){
+                    
+                    print_cdict_table(entry);
+
+                    return;
+                }
+            }
+
+        //else (given directory was not found)
+        std::cout << "Target \"" << fullargs << "\" was not found.\n";
+
         }
 
-        print_cdict_table(*cdict);
+        
     };
 
     //Clears the screen. Windows's "cls"
-    commands["cls"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["cls"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         #ifdef _WIN32
             std::system("cls");
@@ -208,7 +471,7 @@ CommandList registerCommands(){
     };
 
     //Prints Working Directory. Linux's "pwd". I hate that on w64 "cd" pwd's
-    commands["pwd"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["pwd"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         if(!(cmd.args.empty())){
             std::cout << info_str("This command does not take args. They were ignored.") << std::endl; 
@@ -218,7 +481,7 @@ CommandList registerCommands(){
     };
 
     //Reload json config
-    commands["reload"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["reload"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         std::string fullargs = merge_str(cmd.args);
 
@@ -236,11 +499,28 @@ CommandList registerCommands(){
     #ifdef _PERSONAL_MODE
 
     //test and debugg
-    commands["test"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["test"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         std::string fullargs = merge_str(cmd.args);
 
-        std::cout << parseEnvVars(fullargs) << std::endl;
+        int skipped;
+        const char** argtext = (const char**) strvecToCharPtrArr(cmd.args);
+
+        int i = 0;
+        for(std::string s : cmd.args){
+
+            if( s == "-j"){
+
+                std::string out = parserGetFullStrViaQuotes(cmd.args.size(), argtext, i + 1, &skipped);
+
+                std::cout << "Skipped: " << skipped << std::endl;
+                std::cout << "Args: " << cmd.args.size() << std::endl;
+                std::cout << ":: " << out << std::endl;
+
+            }
+
+            i++;
+        }
 
     };
 
@@ -248,7 +528,7 @@ CommandList registerCommands(){
         
     
 
-    commands["info"] = [](const Session& ses, const Command& cmd, Contentdict*& cdict){
+    commands["info"] = [](const Session& ses, const Command& cmd, DirElement*& cdict){
 
         if(cmd.args.empty()){
 
@@ -267,7 +547,7 @@ CommandList registerCommands(){
         
         std::string fullargs = merge_str(cmd.args);
 
-        for(Contentdict& entry : cdict -> subdir){
+        for(DirElement& entry : cdict -> subdir){
             if(entry.key == fullargs){
                 std::cout << "\nSize of "<< entry.key << ": " << size_ext(entry.value) << std::endl;
 
@@ -283,8 +563,6 @@ CommandList registerCommands(){
 
         //else (given directory was not found)
         std::cout << "Subdir \"" << fullargs << "\" was not found.\n";
-
-        
         
     };
 
@@ -293,196 +571,43 @@ CommandList registerCommands(){
 }
 
 
-
-CLA_context parseArgs(int argc, const char* argv[]) {
-
-    CLA_context clactx;
-    clactx.extype = DEFAULT;
-    clactx.destination = "";
-    bool take_num_in = false;
-    clactx.numarg = 0;
-    clactx.needs_dir_size_calc = false;
-
-    if(argc == 1){
-        clactx.extype = TABLE;
-        clactx.needs_dir_size_calc = true;
-    }
-
-    for (size_t i = 1; i < argc; i++) {
-        const char* arg = argv[i];
-
-        if (take_num_in) {
-
-            char* endptr;
-            const int base = OPTIONS::INPUT_BASE;
-
-            clactx.numarg = strtol(arg, &endptr, base) + 1; //+1 because without it the depth feels unintuitive
-            
-
-            if (*endptr != '\0') {
-
-                std::cerr << "WARNING: tree-depth \"" << arg << "\" is not an integer and will be ignored.\n"; 
-
-                clactx.numarg = 12;
-                
-            }
-
-            take_num_in = false;
-            continue; //skip to next arg
-        }
-
-        
-        if(!strcmp(arg, "-t") || !strcmp(arg, "--table")){ 
-            if(clactx.extype == DEFAULT) {
-                clactx.needs_dir_size_calc = true;
-                clactx.extype = TABLE;
-            }
-
-            else {
-                print_syntax_error();
-
-                return clactx;
-            }
-
-        }
-
-        else if(!strcmp(arg, "-b") || !strcmp(arg, "--tree")) {
-
-            if(clactx.extype == DEFAULT) {
-                clactx.needs_dir_size_calc = true;
-                clactx.extype = TREE;
-            }
-
-            else {
-                print_syntax_error();
-
-                return clactx;
-            }
-
-            take_num_in = true;
-        }
-
-        else if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-            
-            clactx.extype = HELP;
-            
-            return clactx;
-        }
-
-        else if (!strcmp(arg, "-v") || !strcmp(arg, "--version")) {
-
-            if(clactx.extype == DEFAULT) clactx.extype = VERSION_DISPLAY;
-
-            else {
-                print_syntax_error();
-
-                return clactx;
-            }
-
-        }
-
-
-        else if(!strcmp(arg, "-c") || !strcmp(arg, "--cmd")) {
-            clactx.needs_dir_size_calc = true;
-            clactx.extype = CMDLINE;
-        }
-
-        else {
-
-            if (clactx.destination == ""){
-                clactx.destination = arg;
-            }
-            else {
-                print_syntax_error();
-                return clactx;
-            }
-
-        }
-
-    }
-
-    if(clactx.extype == DEFAULT && clactx.destination != "") {
-        clactx.extype = TABLE;
-        clactx.needs_dir_size_calc = true;
-    }
- 
-
-    return clactx;
-
-}
-
-/// @brief calcs full size of given directory in CLA_context object
-/// @param destination name of the directory (std::filesystem syntax)
-/// @return A contentdict containing all information
-/// @throw `std::invalid_argument` in case of invalid destination path
-Contentdict calc_full_dir_size(std::string destination){
-
-    fs::directory_entry cwd_entry;
-
-    if(destination != "") {
-        fs::path p(destination);
-
-        
-        if (!fs::exists(p)){
-            
-            throw std::invalid_argument("Invalid Path given.");
-        }
-
-        cwd_entry = fs::directory_entry(p);
-
-    }
-    else {
-        cwd_entry = fs::directory_entry(fs::current_path());
-    }
-
-    Contentdict cdict;
-    
-
-    Progress_bar prgbar(cwd_entry);
-
-    return get_size(cwd_entry, &cdict, &prgbar);
-
-}
-
-
-
 int main(int argc, const char* argv[]){
 
     
-    CLA_context clactx = parseArgs(argc, argv);
+    Session mainsession = parseArgs(argc, argv);
 
-    Contentdict cdict;
 
-    if(clactx.needs_dir_size_calc){
+    if(mainsession.needs_dir_size_calc){
         
         try {
 
-            cdict = calc_full_dir_size(clactx.destination);
+            mainsession.root = calc_full_dir_size(mainsession.destination);
+            mainsession.homedir = &mainsession.root;
             
         } catch(std::invalid_argument& ia) {
 
-            std::cerr << "Given directory was not found: " << clactx.destination << std::endl;
+            std::cerr << "Given directory was not found: " << mainsession.destination << std::endl;
             return 1;
 
         }
 
-        if(load_json()) std::cerr << "ifstream: config.json could not be loaded.: " << get_path_of_exe() / "config.json" << std::endl;
+        if(load_json(mainsession.path_to_cfg)) std::cerr << "ifstream: config.json could not be loaded.: " << get_path_of_exe() / "config.json" << std::endl;
         
     }
 
     //create session obj. with this directory as home-directory
-    Contentdict* pcdict = &cdict;   
-    Session mainses {pcdict};       
+    DirElement* proot = &(mainsession.root);   
+           
 
     
-    switch (clactx.extype)
+    switch (mainsession.extype)
     {
     case TABLE:
-        print_cdict_table(cdict);
+        print_cdict_table(mainsession.root);
         return 0;
 
     case TREE:
-        print_cdict_tree(cdict, clactx.numarg);
+        print_cdict_tree(mainsession.root, mainsession.numarg);
         return 0;  
 
     case CMDLINE:
@@ -502,7 +627,7 @@ int main(int argc, const char* argv[]){
         return 1;
     }
 
-    //Map: std::string -> void (*_) (const Session&, const Command&, Contentdict*&)
+    //Map: std::string -> void (*_) (const Session&, const Command&, DirElement*&)
     CommandList commands = registerCommands();
 
     std::string cmd_input; //cmd-line input
@@ -510,7 +635,7 @@ int main(int argc, const char* argv[]){
     //command line UI
     while (true){
 
-        std::cout << get_cmd_prompt(mainses, *pcdict);
+        std::cout << get_cmd_prompt(mainsession, *proot);
         if(!std::getline(std::cin, cmd_input)){
             throw std::invalid_argument("Input could not be gathered.");
         }
@@ -534,7 +659,7 @@ int main(int argc, const char* argv[]){
 
         auto it = commands.find(fcmd.name);
         if (it != commands.end()) { 
-            it -> second(mainses, fcmd, pcdict);//<---- command parameters here
+            it -> second(mainsession, fcmd, proot);//<---- command parameters here
         }
         else {
             std::cout << warning_str("Unknown command: ") << fcmd.name << "\n";

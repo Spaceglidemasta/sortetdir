@@ -1,6 +1,6 @@
 /*
     This file contains functions and structs that are mostly for UI / printing purposes,
-    or to modify and create strings. Exceptions are the Contentdict and Row structures.
+    or to modify and create strings. Exceptions are the DirElement and Row structures.
 
     More constants may be located in constants.hpp.
 
@@ -8,86 +8,14 @@
 */
 #pragma once
 
-#include <string>
-#include <iostream>
-#include <regex>
-#include <iomanip>
-#include <sstream>
-#include <vector>
-#include <filesystem>
-#include <cmath>
-#include <ctime>
 
-#include <chrono>
-using cock = std::chrono::system_clock;
-
-#ifdef _WIN32
-    #include <windows.h>
-#elif __APPLE__
-    #include <mach-o/dyld.h>
-    #include <sys/stat.h>
-#else //unix
-    #include <unistd.h>
-#endif
-
-//normal part of <windows.h>
-#ifndef MAX_PATH
-    #define MAX_PATH 260
-#endif
-
-
-
-namespace fs = std::filesystem;
 #include "constants.hpp"
 
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
-#include <fstream>
-
-
-constexpr uint16_t MAX_NAME_LENGTH  = 30;
-constexpr uint16_t MAX_TYPE_LENGTH  = 8;
-constexpr uint16_t MAX_SIZE_LENGTH  = 12;
-
-constexpr uint16_t GB_BORDER_RED_COLOR =  10;       // (default: 10) the border for when filesizes in GB start to be displayed in PCL::RED.
-constexpr uint16_t GB_BORDER_YELLOW_COLOR =  2;     // (default: 2) the border for when filesizes in GB start to be displayed in PCL::YELLOW.
-constexpr uint16_t TREE_DEFAULT_MAX_DEPTH =  12;    // (default: 12) default max depth of the tree-view.
-constexpr short int TREE_DEFAULT_DEPTH =  -1;       // (default: -1) the default depth to start printing tree-views. No, -1 is not an error. This still worked when this was a uint16_t btw
-
-//A fragment of when there was no cdict for saving the Directory calculations,
-//and there was a Row obj. needed to print the table.
-// typedef struct _Row {
-//     std::string name;   //First column
-//     std::string type;   //Second column
-//     uintmax_t size;     //Third column
-// } Row;
-
-//TODO remove cock and replace set_ctime (thingy) with print_ctime
 
 
 
-/*
-    Main structure of this program. Stores most information needed for the program.
-*/
-struct Contentdict {
 
-    //!Beware of padding!
 
-    std::string key = "";                       //Key / name of the file / directory.
-    std::string type = UI::DEFAULT_TYPE_NAME;   //This is for printing only and does not effect code-logic. "DIR", "FILE" or default: "N/A"
-    std::vector<Contentdict> subdir;          //Content of the directory.
-    std::string path = UI::DEFAULT_TYPE_NAME;   //String of the Path; for printing only; does not effect code-logic. "N/A" is default.
-    std::optional<cock::time_point> creation_date; //creation date of the dir / file in SYSEMTIME. Use print_ctime() to print to the stdout
-
-    uint64_t value = 0;                        //Size in Bits. Can be converted to more usefull size-units with size_ext(cdict.value) -> str.
-    uint64_t files_contained = 0;            //number of files contained
-    uint64_t dirs_contained = 0;              //number of dirs contained
-    Contentdict* parent = nullptr;            //Pointer to parent dir, default is nullptr.
-    
-    bool is_invisible = false;                  //Some directories are not visible under some selected OS options. On Linux these files start with "."
-    uint16_t symlinks_skipped = 0;              //Counts how many Symlinks have been skipped / are contained because of redundance.
-
-};
 
 
 class Progress_bar {
@@ -139,19 +67,17 @@ class Progress_bar {
     }
 };
 
-struct Session {
-    Contentdict* homedir = nullptr;
-};
+
 
 
 
 //example: "Creation time of sortetdircpp: Thu Aug 14 21:51:43 2025" + std::endl
-bool print_ctime(const Contentdict& cdict){
+bool print_ctime(const DirElement& cdict){
     if(!cdict.creation_date){
         if(OPTIONS::DEBUG)  std::cout << "Cdict has no creation_date: " << cdict.key << std::endl;
         return false;
     }
-    std::time_t t = cock::to_time_t(cdict.creation_date.value());
+    std::time_t t = sysclock::to_time_t(cdict.creation_date.value());
     std::cout << "Creation time of " << cdict.key << ": " << std::ctime(&t);
 
     return true;
@@ -452,7 +378,7 @@ std::string get_seccol() {
 
     returns -> "Documents\programming scripts\C++"
 */
-std::string short_path(const Session& ses, const Contentdict& cdict) {
+std::string short_path(const Session& ses, const DirElement& cdict) {
     //if we are at the start / home directory
     if (ses.homedir == &cdict) {
         return cdict.key;
@@ -601,7 +527,7 @@ std::string merge_str(const std::vector<std::string>& vstr){
  * @param indentstr indentation-string used for rekursion
  */
 void print_cdict_tree(
-    const Contentdict& cdict,
+    const DirElement& cdict,
     uint16_t max_depth = 12,
     uint16_t depth = 0,
     bool first = true,
@@ -644,7 +570,7 @@ void print_cdict_tree(
 
         size_t i = 0;
 
-        for(const Contentdict& subdict : cdict.subdir){
+        for(const DirElement& subdict : cdict.subdir){
 
             i++;
 
@@ -695,7 +621,7 @@ void print_syntax_error() {
  * 
  * @param cdict The contentdict that is supposed to be printed.
  */
-void print_cdict_table(const Contentdict& cdict){
+void print_cdict_table(const DirElement& cdict){
 
     if(cdict.subdir.empty()){
         std::cout << info_str("This directory is empty.") << std::endl;
@@ -705,13 +631,13 @@ void print_cdict_table(const Contentdict& cdict){
     Progress_bar::clear();
 
     //the final table that is printed using setw()
-    std::vector<Contentdict> table = cdict.subdir;
+    std::vector<DirElement> table = cdict.subdir;
 
     //stable sort by cdict.value
     std::stable_sort(
         table.begin(),
         table.end(),
-        [](const Contentdict& a, const Contentdict& b) {
+        [](const DirElement& a, const DirElement& b) {
             return a.value > b.value;
         }
     );
@@ -732,7 +658,7 @@ void print_cdict_table(const Contentdict& cdict){
     
     std::string sizestr;
     //Table content
-    for (const Contentdict& cdict_row : table) {
+    for (const DirElement& cdict_row : table) {
 
         sizestr = size_ext(cdict_row.value);
 
@@ -754,5 +680,5 @@ void print_cdict_table(const Contentdict& cdict){
 }
 
 void print_version() {
-    std::cout << "Version 3.4.4\n";
+    std::cout << "Version 3.4.5\n";
 }

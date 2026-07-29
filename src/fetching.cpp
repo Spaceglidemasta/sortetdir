@@ -7,7 +7,7 @@
 #include "printing.cpp"
 
 //returns the cmd-prompt string, using the UI and PCL namespace
-std::string get_cmd_prompt(const Session& ses, const Contentdict& cdict){
+std::string get_cmd_prompt(const Session& ses, const DirElement& cdict){
     
     std::ostringstream oss;
     oss << PCL::BLUE << UI::PRE_PROMPT << PCL::CYAN << short_path(ses, cdict) << PCL::BLUE << UI::POST_PROMPT << PCL::END << UI::COMMAND_LINE_LINE;
@@ -36,7 +36,7 @@ bool is_hidden(const std::filesystem::directory_entry& entry) {
 
 
 //sets the time attributes of the cdict via reference
-bool cdict_set_filetime(Contentdict& cdict, std::string pathname){
+bool cdict_set_filetime(DirElement& cdict, std::string pathname){
 
     #ifdef _WIN32
 
@@ -122,21 +122,21 @@ bool cdict_set_filetime(Contentdict& cdict, std::string pathname){
 
     #else //linux
 
-        //im not gonna mess with all these FS, yall really need to implement this globally.
+        
 
     #endif
 
     return true;
 }
 
-Contentdict get_size(
+DirElement get_size(
     const fs::directory_entry& entry,
-    Contentdict* phomedir = nullptr,
+    DirElement* phomedir = nullptr,
     Progress_bar* pprgbar = nullptr,
     uint16_t depth = 0
 ) {
 
-    Contentdict currentdict;
+    DirElement currentdict;
     depth++;
 
 
@@ -157,7 +157,7 @@ Contentdict get_size(
             for (const fs::directory_entry& current_entry : fs::directory_iterator(entry.path(), fs::directory_options::skip_permission_denied)) {
 
                 //start the next recursion
-                Contentdict nextdict = get_size(current_entry, phomedir, pprgbar, depth);
+                DirElement nextdict = get_size(current_entry, phomedir, pprgbar, depth);
 
                 //only load pprgbar in depth 1. Can be changed in the future to handle more accuracy, but needs to be extended to count these to "total"
                 if(depth == 1 && pprgbar) pprgbar -> update_progressbar();
